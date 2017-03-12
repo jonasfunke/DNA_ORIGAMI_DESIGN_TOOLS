@@ -9,7 +9,7 @@ Created on Tue Feb 28 09:05:04 2017
 import os
 import sys
 import numpy as np
-from Bio.SeqUtils import MeltingTemp as mt
+from Bio.SeqUtils import MeltingTemp
 from Bio.Seq import Seq
 #import nanodesign converter module
 base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
@@ -24,7 +24,7 @@ sys.path = sys.path[:-1]
 #file_name=sys.argv[1]
 #file_name=current_working_directory+"/"+file_name
 #print('file_name',file_name)
-file_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/Designs/FS-v6_spectrometer/FS-v6_016_build/FS-v6_016_04.json'
+file_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/Designs/FS-v6_spectrometer/FS-v6_017_build/FS-v6_017_12.json'
 seq_name = 'p7704'
 
 #create output path
@@ -44,13 +44,13 @@ def get_scaffold_indices(dna_structure, reportcolor):
     scaffold_indices =[]
     scaffold_bases_init =[]
     for strand in dna_structure.strands:
-        print str(strand.color)
+        #print str(strand.color)
         if strand.color==reportcolor:
             #seq = [base.seq for base in strand.tour]
             strand_scaffold_base = []
             strand_scaffold_index = []
             for base in strand.tour:
-                if base.across is not None:
+                if base.seq is not 'N':
                     strand_scaffold_base.append(base.across.seq)
                     strand_scaffold_index.append(dna_structure.strands[scaffold_id].get_base_index(base.across))
                     
@@ -119,7 +119,7 @@ for i in range(0,scaffold_length):
     tmp = [i]
     # compute melting temp of each strand
     for strand in scaffold_sequences:
-        tmp.append(mt.Tm_NN(Seq(''.join(strand)), nn_table=mt.DNA_NN4))
+        tmp.append(MeltingTemp.Tm_NN(Seq(''.join(strand)), nn_table=MeltingTemp.DNA_NN4))
     permutations_red.append(tmp)
     
     
@@ -128,57 +128,31 @@ a = np.matrix(permutations_red)
 np.savetxt(file_out, a, fmt='%i', delimiter='\t', newline='\n') 
 
 
-#%% Measure melting temperature of orange staples
-scaffold_indices_orange = get_scaffold_indices(dna_structure, [0.5333333333333333, 0.5333333333333333, 0.5333333333333333])
-print 'Number of orange oligos: '+str(len(scaffold_indices_orange))
-
-# loop through scaffold permutations
-permutations_orange = []
-for i in range(0,scaffold_length):
-    scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices_orange, i)
-    if i%1000 is 0: print 'Permutation '+str(i)
-    
-    tmp = [i]
-    # compute melting temp of each strand
-    for strand in scaffold_sequences:
-        tmp.append(mt.Tm_NN(Seq(''.join(strand)), nn_table=mt.DNA_NN4))
-    permutations_orange.append(tmp)
-
-file_out =  file_name[:-5]+'_permutations_melting-temp_orange.txt'
-a = np.matrix(permutations_orange)
-np.savetxt(file_out, a, fmt='%i', delimiter='\t', newline='\n') 
-
 
 #%% REPORT CURRENT PERMUTATION
 print 'STATS OF PERMUTATION '+str(0)
 print 'Thymine content of scaffold loops: {}'.format(sum(permutations_black[0][1:]))+' '+str(permutations_black[0][1:])
 print 'Minimum melt. temp of red staples: {}'.format(round(min(permutations_red[0][1:])))
-print 'Minimum melt. temp of orange staples: {}'.format(round(min(permutations_orange[0][1:])))
 print 'Red melting temperatures ' +str([round(melt,0) for melt in permutations_red[0][1:]])
-print 'Orange melting temperatures ' +str([round(melt,0) for melt in permutations_orange[0][1:]])
 
 scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices_black, 0)
 for strand in scaffold_sequences:
     print ''.join(strand)+str(' ')+str(strand.count('T'))
 
 #%% REPORT ith PERMUTATION
-i = 6965
+i = 17
 print 'STATS OF PERMUTATION '+str(i)
 print 'Thymine content of scaffold loops: {}'.format(sum(permutations_black[i][1:]))+' '+str(permutations_black[i][1:])
 print 'Minimum melt. temp of red staples: {}'.format(round(min(permutations_red[i][1:])))
-print 'Minimum melt. temp of orange staples: {}'.format(round(min(permutations_orange[i][1:])))
 print 'Red melting temperatures ' +str([round(melt,0) for melt in permutations_red[i][1:]])
-print 'Orange melting temperatures ' +str([round(melt,0) for melt in permutations_orange[i][1:]])
 
-#%% REPORT BLACK sequences
-i = 0
 scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices_black, i)
 for strand in scaffold_sequences:
     print ''.join(strand)+str(' ')+str(strand.count('T'))
 
 
 #%% determine scaffold sequence of best permutation
-i = 0
+i = 17
 print 'Helix: ' + str(dna_structure.strands[scaffold_id].tour[(-i)%scaffold_length].h)
 print 'Index: ' + str(dna_structure.strands[scaffold_id].tour[(-i)%scaffold_length].p)
 tmp= []
@@ -196,5 +170,19 @@ for strand in scaffold_sequences:
     print str( round(mt.Tm_NN(Seq(''.join(strand)))) )  + ' ' + str(round(mt.Tm_NN(Seq(''.join(strand)), nn_table=mt.DNA_NN4) ))   + ' ' + ''.join(strand)
 
 
+
+#%%
+
+
+strand_scaffold_base = []
+strand_scaffold_index = []
+seq = []
+for base in dna_structure.strands[2].tour:
+    seq.append(base.seq)
+    if base.seq is not 'N':
+        strand_scaffold_base.append(base.across.seq)
+        strand_scaffold_index.append(dna_structure.strands[scaffold_id].get_base_index(base.across))
+print ''.join(seq)
+print ''.join(strand_scaffold_base)
 
 
