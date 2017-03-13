@@ -4,13 +4,13 @@
 Created on Wed Mar  8 17:42:58 2017
 
 @author: jonasfunke
-"""
-
-"""This scripted computes strand statistics for a cadnano design. It uses the nanodesign package from autodesk
+    This scripted computes strand statistics for a cadnano design. It uses the nanodesign package from autodesk
     usage: python design_statistics.py path/to/json_file.json p7560
 """
 
-# Imports
+# compatibility to python 3.5
+#from __future__ import (absolute_import, division, print_function, unicode_literals)
+import __future__
 import os
 import numpy #for writing matrices
 import matplotlib.pyplot as plt #plotting 
@@ -24,7 +24,7 @@ try:
 except ImportError:
     import sys
     #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign/'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -111,6 +111,8 @@ def main():
     dna_structure.compute_aux_data() # compute domain data
     
     #%%     
+    bla = 'GATCGATNCTAGCTAGNGATCGATCGNNNN'
+   
     # compute staple statistics
     staple_length=[] # length of staple
     avg_domain_length = [] # average domain length of staple
@@ -123,9 +125,9 @@ def main():
             cur_domain_len = []
             cur_domain_mt = []
             for domain in strand.domain_list:
-                cur_domain_len.append(len(domain.sequence.translate(None, 'N')))
-                if len(domain.sequence.translate(None, 'N'))>0:
-                    cur_domain_mt.append(MeltingTemp.Tm_NN(Seq(domain.sequence.translate(None, 'N'))))
+                cur_domain_len.append(len(domain.sequence.replace('N', '')))
+                if len(domain.sequence.replace('N', ''))>0:
+                    cur_domain_mt.append(MeltingTemp.Tm_NN(Seq(domain.sequence.replace('N', ''))))
             domain_max_melt.append([strand.id, max(cur_domain_mt)])
             avg_domain_length.append([strand.id, numpy.mean(cur_domain_len)])
             domain_max_length.append([strand.id, max(cur_domain_len)])
@@ -147,13 +149,12 @@ def main():
     # compute domain length statitics
     domain_lengths = []
     for domain in dna_structure.domain_list:
-        if len(domain.sequence.translate(None, 'N'))> 0:
-            domain_lengths.append([domain.id, len(domain.sequence.translate(None, 'N'))]) #length of domain, removed N for skipped bases
+        if len(domain.sequence.replace('N', ''))> 0:
+            domain_lengths.append([domain.id, len(domain.sequence.replace('N', ''))]) #length of domain, removed N for skipped bases
     
     my_histogram(domain_lengths, output_path, 'Length of domain', 'bp')
     
 
-    
                                   
 #%%
 
