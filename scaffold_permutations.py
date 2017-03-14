@@ -4,15 +4,15 @@
 Created on Wed Mar  8 17:42:58 2017
 
 @author: jonasfunke
-"""
-
-"""This script computes the sequences of the black staples (cadnano version 1) for each scaffold permutation
+    
+    This script computes the sequences of the black staples (colored in cadnano version 1) for each scaffold permutation
     usage: python scaffold_permutations.py path/to/json_file.json p7560
 """
 
 # Imports
 import os
 import csv
+import __future__
 
 # try to impot nanodesign package. I assume the script is in x/somename/design_statistics.py and the nanodesign package is in x/nanodesign
 try:
@@ -114,7 +114,7 @@ def main():
     #%% Loop through scaffold permutations and write sequencs of black oligos 
     scaffold_indices_black = get_scaffold_indices(dna_structure, [0.2, 0.2, 0.2], scaffold_id)       
     #print scaffold_indices_black
-    print 'Number of black oligos: '+str(len(scaffold_indices_black))
+    print('Number of black oligos: '+str(len(scaffold_indices_black)))
     
     file_out = output_path+'_permutations_black-sequences.csv'
     with open(file_out, 'wb') as csvfile:
@@ -126,7 +126,7 @@ def main():
         
         # loop through scaffold permutations
         for i in range(0,scaffold_length):
-            if i%1000 is 0: print 'Computing permutation '+str(i)    
+            if i%1000 is 0: print('Computing permutation '+str(i) + ' from ' + str(scaffold_length))
 
             #scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices_black, i) # scaffold sequences for this rotation
             staple_sequences = get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices_black, i, scaffold_id) # staple sequences for this rotation
@@ -136,7 +136,7 @@ def main():
             for strand in staple_sequences:
                 tmp.append(strand)
             outputwriter.writerow(tmp)
-        print 'Output written to: ' + file_out
+        print('Output written to: ' + file_out)
 #%%
 
 if __name__ == '__main__':
