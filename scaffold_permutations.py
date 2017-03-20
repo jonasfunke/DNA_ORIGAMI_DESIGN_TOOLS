@@ -35,7 +35,7 @@ def read_file(file_name, seq_name): # read file
     return converter
 
 
-def get_scaffold_indices(dna_structure, reportcolor, scaffold_id):
+def get_scaffold_indices(dna_structure, reportcolor, scaffold_id, physical_index):
     # compile a list of scaffold indices coressponding to staples that were colored with reportcolor
     scaffold_indices =[]
     scaffold_bases_init =[]
@@ -48,22 +48,41 @@ def get_scaffold_indices(dna_structure, reportcolor, scaffold_id):
             for base in strand.tour:
                 if base.seq is not 'N':
                     strand_scaffold_base.append(base.across.seq)
-                    strand_scaffold_index.append(dna_structure.strands[scaffold_id].get_base_index(base.across))
+                    strand_scaffold_index.append(physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)])
                     
             strand_scaffold_base.reverse() # reverse the squence to obtain 5 - 3 p 
             strand_scaffold_index.reverse() # reverse the sequence to obtain 5' to 3'        
             scaffold_indices.append(strand_scaffold_index)
             scaffold_bases_init.append(strand_scaffold_base)
+    #for strand in scaffold_bases_init:
+    #    print(''.join(strand))
     return scaffold_indices
 
+def get_sequence(strand):
+    cur_seq = []
+    for base in strand.tour:
+        cur_seq.append(base.seq)
+    return ''.join(cur_seq)
+
 def get_scaffold_sequences(dna_structure, scaffold_indices, scaffold_rotation, scaffold_id):
-    scaffold_length = len(dna_structure.strands[scaffold_id].tour)
+    # physical scaffold sequence
+    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id]).replace('N', '')
+    # physical scaffold length
+    scaffold_length = len(scaffold_sequence)
+    
+    #loop through strands
     scaffold_sequences = []
     for strand in scaffold_indices:
+        # loop through bases in strand
         tmp = []
         for baseindex in strand:
-            tmp.append(dna_structure.strands[scaffold_id].tour[(baseindex+scaffold_rotation)%scaffold_length].seq)
+            # physical index in scaffold
+            i_physical = (baseindex+scaffold_rotation)%scaffold_length
+                         
+            #dna_structure.strands[scaffold_id].tour[i_physical+offset].seq
+            tmp.append(scaffold_sequence[i_physical])
         scaffold_sequences.append(''.join(tmp))
+
     return scaffold_sequences
 
 def get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices, scaffold_rotation, scaffold_id):
@@ -76,6 +95,26 @@ def get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices, 
         #print strand
         #print "".join(complement.get(base, base) for base in reversed(strand))
     return staple_sequences
+
+
+def get_index_lists(dna_structure, scaffold_id):
+    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    
+    physical_to_design = []
+    design_to_physical =[]
+    
+    physical_index = 0
+    for design_index in range(len(scaffold_sequence)):
+        #physical_index.append(i-scaffold_sequence[0:design_index+1].count('N'))
+        if scaffold_sequence[design_index] is 'N':
+            design_to_physical.append(physical_index)
+        else:
+            physical_to_design.append(design_index)
+            design_to_physical.append(physical_index)
+            physical_index = physical_index+1
+    return physical_to_design, design_to_physical
+    
+    
 #%%
 def main():
     # Parse arguments, TODO: use parser object
@@ -109,12 +148,26 @@ def main():
         if strand.is_scaffold:
             scaffold_id = strand.id
     
-    scaffold_length = len(dna_structure.strands[scaffold_id].tour) # this might not be the pyhiscal length, if skips are used
-    
+    #%% make the maps, that map design to physical indeces
+    design_index, physical_index = get_index_lists(dna_structure, scaffold_id)
+     
     #%% Loop through scaffold permutations and write sequencs of black oligos 
-    scaffold_indices_black = get_scaffold_indices(dna_structure, [0.2, 0.2, 0.2], scaffold_id)       
+    scaffold_indices_black = get_scaffold_indices(dna_structure, [0.2, 0.2, 0.2], scaffold_id, physical_index)       
     #print scaffold_indices_black
     print('Number of black oligos: '+str(len(scaffold_indices_black)))
+    
+    # print sequences of oligos
+    print('Complementary sequences of black oligos for current scaffold permutation:')
+    tmp = get_scaffold_sequences(dna_structure, scaffold_indices_black, 0, scaffold_id)
+    for strand in tmp:
+        print(strand)
+        
+    #%% Loop through scaffold permutations and write sequencs of black oligos 
+    #sequence of scaffold in design, this includes skips as 'N' 
+    design_scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    #physical sequence of scaffold, this is the true scaffold sequence 
+    physical_scaffold_length = len(design_scaffold_sequence)-design_scaffold_sequence.count('N')
+    design_scaffold_length = len(design_scaffold_sequence)
     
     file_out = output_path+'_permutations_black-sequences.csv'
     with open(file_out, 'wb') as csvfile:
@@ -124,15 +177,18 @@ def main():
             tmp.append('Black oligo ' + str(j))
         outputwriter.writerow(tmp)
         
-        # loop through scaffold permutations
-        for i in range(0,scaffold_length):
-            if i%1000 is 0: print('Computing permutation '+str(i) + ' from ' + str(scaffold_length))
+        # loop through scaffold permutations in physical space
+        for i in range(0,physical_scaffold_length):
+            if i%1000 is 0: print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length))
+            
+            # determine start of scaffold in design
+            i_d = (-design_index[i])%design_scaffold_length
 
-            #scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices_black, i) # scaffold sequences for this rotation
-            staple_sequences = get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices_black, i, scaffold_id) # staple sequences for this rotation
+            # sequence of black oligos of rotation i
+            staple_sequences = get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices_black, i, scaffold_id) 
             
             # write data for this rotation
-            tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[(-i)%scaffold_length].h), str(dna_structure.strands[scaffold_id].tour[(-i)%scaffold_length].p)]
+            tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p)]
             for strand in staple_sequences:
                 tmp.append(strand)
             outputwriter.writerow(tmp)

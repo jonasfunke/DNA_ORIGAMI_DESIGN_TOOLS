@@ -110,9 +110,7 @@ def main():
     dna_structure = converter.dna_structure     
     dna_structure.compute_aux_data() # compute domain data
     
-    #%%     
-    bla = 'GATCGATNCTAGCTAGNGATCGATCGNNNN'
-   
+    #%%        
     # compute staple statistics
     staple_length=[] # length of staple
     avg_domain_length = [] # average domain length of staple
