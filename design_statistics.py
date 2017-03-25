@@ -153,7 +153,7 @@ def main():
     my_histogram(domain_lengths, output_path, 'Length of domain', 'bp')
     
 
-    #%% compute the alpha value
+    # compute alpha value
     T_crit = 45.
     N_good = 0
     for T in domain_max_melt:
