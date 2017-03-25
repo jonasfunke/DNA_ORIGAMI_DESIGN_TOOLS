@@ -20,7 +20,7 @@ try:
 except ImportError:
     import sys
     #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
