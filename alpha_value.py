@@ -210,7 +210,7 @@ def main():
     T_crit = 45.
     alpha_value = []
     # loop through scaffold permutations in physical space
-    for i in range(0,physical_scaffold_length):
+    for i in range(0, physical_scaffold_length):
         if i%100 is 0: print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length))
         
         # determine start of scaffold in design
@@ -226,7 +226,7 @@ def main():
         
     #%%
         
-    file_out = output_path+'_permutations_black-sequences.csv'
+    file_out = output_path+'_alpha_values.csv'
     with open(file_out, 'wb') as csvfile:
         outputwriter = csv.writer(csvfile, delimiter=';')
         tmp = ['Permutation', 'Start helix', 'Start position', 'Alpha_value']
