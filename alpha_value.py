@@ -120,9 +120,11 @@ def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_i
     # physical scaffold length
     scaffold_length = len(scaffold_sequence)
     
+    #print(staple_indices)
     #loop through strands
     staple_domain_melt = []
     for strand in staple_indices:
+        cur_strand= []
         cur_domain_melt = []
         # loop through domain
         for domain in strand:
@@ -139,13 +141,16 @@ def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_i
                 cur_domain_melt.append(MeltingTemp.Tm_NN(Seq(''.join(tmp))))
             else:
                 cur_domain_melt.append(0.)    
-            
+            cur_strand.append(''.join(tmp))
+           
         staple_domain_melt.append(max(cur_domain_melt))
+        #print(cur_strand)
     # calculate alpha value
     N_good = 0
     for T in staple_domain_melt:
         if T >= T_crit:
             N_good = N_good + 1
+    #print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(staple_domain_melt)))
     return N_good / float(len(staple_domain_melt))
     
 #%%
@@ -186,7 +191,7 @@ def main():
      
     staple_indices = []
     for strand in dna_structure.strands:
-        if not strand.is_scaffold:
+        if not strand.is_scaffold:  
             cur_strand = []
             for domain in strand.domain_list:
                 cur_domain = []
@@ -196,7 +201,7 @@ def main():
                         i = physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)]
                         cur_domain.append(i)
                 cur_strand.append(cur_domain)
-        staple_indices.append(cur_strand)
+            staple_indices.append(cur_strand)
                     
                     
         
@@ -218,6 +223,9 @@ def main():
 
         # calculate alpha value
         alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit))
+        if i==0:
+            print('Current alpha value is ' + str(alpha_value[-1]))
+        #print('Rotation ' + str(i) + ', alpha value ' + str(alpha_value[-1]))
         #print('Rotation '+str(i) + ' alpha = '+str(round(alpha_value[-1],2)) )
         
        

@@ -157,12 +157,12 @@ def main():
     T_crit = 45.
     N_good = 0
     for T in domain_max_melt:
-        print(T[1])
+        #print(T[1])
         if T[1] >= T_crit:
             N_good = N_good + 1
     print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(domain_max_melt)))
     print('Alpha value is '+str(N_good / float(len(domain_max_melt))) )
-                                  
+                          
 #%%
 
 if __name__ == '__main__':
