@@ -119,17 +119,21 @@ def main():
     number_of_domains = [] #number of domains of staple
     for strand in dna_structure.strands:
         if not strand.is_scaffold:
+            cur_strand = []
             staple_length.append([strand.id, get_strand_length(strand)])
             cur_domain_len = []
             cur_domain_mt = []
             for domain in strand.domain_list:
                 cur_domain_len.append(len(domain.sequence.replace('N', '')))
+                cur_strand.append(domain.sequence.replace('N', ''))
                 if len(domain.sequence.replace('N', ''))>0:
                     cur_domain_mt.append(MeltingTemp.Tm_NN(Seq(domain.sequence.replace('N', ''))))
             domain_max_melt.append([strand.id, max(cur_domain_mt)])
             avg_domain_length.append([strand.id, numpy.mean(cur_domain_len)])
             domain_max_length.append([strand.id, max(cur_domain_len)])
             number_of_domains.append([strand.id, len(cur_domain_mt)]) # this will not incude polyT overhangs as separate domains
+            #if max(cur_domain_mt) >= 45. :
+            print(cur_strand)
 
     # compute histograms
     my_histogram(staple_length, output_path, 'Length of staples', 'bases')
@@ -161,8 +165,14 @@ def main():
         if T[1] >= T_crit:
             N_good = N_good + 1
     print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(domain_max_melt)))
-    print('Alpha value is '+str(N_good / float(len(domain_max_melt))) )
-                          
+    
+    #determine scaffold strand id
+    for strand in dna_structure.strands:
+        if strand.is_scaffold:
+            scaffold_id = strand.id
+    print('Alpha value is '+str(N_good / float(len(domain_max_melt))) + ' on H' + str(dna_structure.strands[scaffold_id].tour[0].h) + ' at position '  + str(dna_structure.strands[scaffold_id].tour[0].p) )
+    
+                                   
 #%%
 
 if __name__ == '__main__':

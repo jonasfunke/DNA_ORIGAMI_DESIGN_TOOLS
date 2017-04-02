@@ -13,6 +13,8 @@ import csv
 import __future__
 from Bio.SeqUtils import MeltingTemp # compute melting temperatures
 from Bio.Seq import Seq #create biopython sequences
+#from Bio.Alphabet import generic_dna
+
 
 # try to impot nanodesign package. I assume the script is in x/somename/design_statistics.py and the nanodesign package is in x/nanodesign
 try:
@@ -34,68 +36,11 @@ def read_file(file_name, seq_name): # read file
     converter.read_cadnano_file(file_name, seq_file, seq_name)
     return converter
 
-
-def get_scaffold_indices(dna_structure, reportcolor, scaffold_id, physical_index):
-    # compile a list of scaffold indices coressponding to staples that were colored with reportcolor
-    scaffold_indices =[]
-    scaffold_bases_init =[]
-    for strand in dna_structure.strands:
-        #print str(strand.color)
-        if strand.color==reportcolor:
-            #seq = [base.seq for base in strand.tour]
-            strand_scaffold_base = []
-            strand_scaffold_index = []
-            for base in strand.tour:
-                if base.seq is not 'N':
-                    strand_scaffold_base.append(base.across.seq)
-                    strand_scaffold_index.append(physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)])
-                    
-            strand_scaffold_base.reverse() # reverse the squence to obtain 5 - 3 p 
-            strand_scaffold_index.reverse() # reverse the sequence to obtain 5' to 3'        
-            scaffold_indices.append(strand_scaffold_index)
-            scaffold_bases_init.append(strand_scaffold_base)
-    #for strand in scaffold_bases_init:
-    #    print(''.join(strand))
-    return scaffold_indices
-
 def get_sequence(strand):
     cur_seq = []
     for base in strand.tour:
         cur_seq.append(base.seq)
     return ''.join(cur_seq)
-
-def get_scaffold_sequences(dna_structure, scaffold_indices, scaffold_rotation, scaffold_id):
-    # physical scaffold sequence
-    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id]).replace('N', '')
-    # physical scaffold length
-    scaffold_length = len(scaffold_sequence)
-    
-    #loop through strands
-    scaffold_sequences = []
-    for strand in scaffold_indices:
-        # loop through bases in strand
-        tmp = []
-        for baseindex in strand:
-            # physical index in scaffold
-            i_physical = (baseindex+scaffold_rotation)%scaffold_length
-                         
-            #dna_structure.strands[scaffold_id].tour[i_physical+offset].seq
-            tmp.append(scaffold_sequence[i_physical])
-        scaffold_sequences.append(''.join(tmp))
-
-    return scaffold_sequences
-
-def get_staple_sequences_from_scaffold_indices(dna_structure, scaffold_indices, scaffold_rotation, scaffold_id):
-    scaffold_sequences = get_scaffold_sequences(dna_structure, scaffold_indices, scaffold_rotation, scaffold_id)
-    
-    staple_sequences = []
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    for strand in scaffold_sequences:
-        staple_sequences.append("".join(complement.get(base, base) for base in reversed(strand)))
-        #print strand
-        #print "".join(complement.get(base, base) for base in reversed(strand))
-    return staple_sequences
-
 
 def get_index_lists(dna_structure, scaffold_id):
     scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
@@ -112,39 +57,41 @@ def get_index_lists(dna_structure, scaffold_id):
             physical_to_design.append(design_index)
             design_to_physical.append(physical_index)
             physical_index = physical_index+1
+            
     return physical_to_design, design_to_physical
     
-def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_id, T_crit):
+def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_id, T_crit, print_staples):
     # physical scaffold sequence
     scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id]).replace('N', '')
     # physical scaffold length
     scaffold_length = len(scaffold_sequence)
-    
     #print(staple_indices)
     #loop through strands
     staple_domain_melt = []
     for strand in staple_indices:
-        cur_strand= []
+        #cur_strand= []
         cur_domain_melt = []
         # loop through domain
         for domain in strand:
             # loop through bases in DOMAIN
-            tmp = []
+            cur_domain = []
             for baseindex in domain:
                 # physical index in scaffold
                 i_physical = (baseindex+scaffold_rotation)%scaffold_length
                              
                 #dna_structure.strands[scaffold_id].tour[i_physical+offset].seq
-                tmp.append(scaffold_sequence[i_physical])
-            if len(tmp)>1:
-                # compute melting temperature of domain
-                cur_domain_melt.append(MeltingTemp.Tm_NN(Seq(''.join(tmp))))
+                cur_domain.append(scaffold_sequence[i_physical])
+            if len(cur_domain)>1:
+                # compute melting temperature of domain; reverse sequence of cur_domain, since it is on the scaffold and the indices follow staples
+                cur_domain_melt.append(MeltingTemp.Tm_NN(Seq(''.join(cur_domain[::-1]))))
             else:
-                cur_domain_melt.append(0.)    
-            cur_strand.append(''.join(tmp))
+                cur_domain_melt.append(0.)
+            #domain_seq_on_scaffold = Seq(''.join(cur_domain[::-1]), generic_dna)
+            #cur_strand.append(str(domain_seq_on_scaffold.reverse_complement()))
            
         staple_domain_melt.append(max(cur_domain_melt))
-        #print(cur_strand)
+        #if print_staples:
+        #    print(str(cur_strand))
     # calculate alpha value
     N_good = 0
     for T in staple_domain_melt:
@@ -166,7 +113,7 @@ def main():
     seq_name = sys.argv[2]
 
     #%%
-    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/Designs/FS-v7_spectrometer/FS-v7_order_2017-03-18/FS-v7.json'
+    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v7.json'
     #seq_name = 'p8064'
     
     # parse filename and create output directory
@@ -181,14 +128,20 @@ def main():
     dna_structure = converter.dna_structure     
     dna_structure.compute_aux_data() # compute domain data
         
-   #determine scaffold strand id
+    #determine scaffold strand id
+    scaffold_id = -1
     for strand in dna_structure.strands:
         if strand.is_scaffold:
-            scaffold_id = strand.id
+            print('Scaffold strand has index '+ str(strand.id))
+            if scaffold_id is -1 :
+                scaffold_id = strand.id
+            else:
+                print('WARNING: Multiple scaffolds detected')
     
     #%% make the maps, that map design to physical indeces
     design_index, physical_index = get_index_lists(dna_structure, scaffold_id)
      
+    # get the indices of the staples on the scaffold strand
     staple_indices = []
     for strand in dna_structure.strands:
         if not strand.is_scaffold:  
@@ -203,7 +156,6 @@ def main():
                 cur_strand.append(cur_domain)
             staple_indices.append(cur_strand)
                     
-                    
         
     #%% Loop through scaffold permutations and write sequencs of black oligos 
     #sequence of scaffold in design, this includes skips as 'N' 
@@ -214,22 +166,30 @@ def main():
     
     T_crit = 45.
     alpha_value = []
+    
     # loop through scaffold permutations in physical space
     for i in range(0, physical_scaffold_length):
+    
         if i%100 is 0: print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length))
         
-        # determine start of scaffold in design
-        i_d = (-design_index[i])%design_scaffold_length
-
         # calculate alpha value
-        alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit))
-        if i==0:
-            print('Current alpha value is ' + str(alpha_value[-1]))
+        alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit, 0))
+            
+        if i==0: print('Current alpha value is ' + str(alpha_value[-1]))
+            
+        # determine start of scaffold in design
+        #i_d = design_index[(-i)%physical_scaffold_length]
+        #print('Alpha value ' + str(alpha_value[-1]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p))
+
         #print('Rotation ' + str(i) + ', alpha value ' + str(alpha_value[-1]))
         #print('Rotation '+str(i) + ' alpha = '+str(round(alpha_value[-1],2)) )
         
-       
-        
+    #%%
+    print('Maximal alpha values:')
+    i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
+    for j in range(10):
+        i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
+        print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
         
         
     #%%
@@ -244,14 +204,14 @@ def main():
         for i in range(0,physical_scaffold_length):
             
             # determine start of scaffold in design
-            i_d = (-design_index[i])%design_scaffold_length
-
+            i_d = design_index[(-i)%physical_scaffold_length]
 
             # write data for this rotation
             tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p), alpha_value[i]]            
             outputwriter.writerow(tmp)
         print('Output written to: ' + file_out)   
-        
+
+    print('REMARK: alpha values of the modified design might differ slightly form the predicted alpha values. Altered staple segmentation caused by shifting the scaffold starting point can slightly change the final alpha value.')        
         
         
         
