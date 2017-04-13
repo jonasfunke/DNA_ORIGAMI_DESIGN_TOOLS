@@ -8,9 +8,11 @@ Created on Sat Mar 25 14:51:51 2017
 """
 
 # Imports
+from __future__ import print_function
+
 import os
 import csv
-import __future__
+import argparse
 from Bio.SeqUtils import MeltingTemp # compute melting temperatures
 from Bio.Seq import Seq #create biopython sequences
 #from Bio.Alphabet import generic_dna
@@ -21,8 +23,8 @@ try:
     import nanodesign
 except ImportError:
     import sys
-    #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
+    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -102,19 +104,30 @@ def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_i
     
 #%%
 def main():
+    #%%      
     # Parse arguments, TODO: use parser object
-    if (len(sys.argv) != 3):
-        sys.stderr.write("**** ERROR: Wrong number of arguments.\n") 
-        sys.stderr.write("Usage: design_statistics.py <filename> scaffold_sequence\n")
-        sys.stderr.write("Output: If <filename> is path/name.json, output will be placed in path/name_analysis/\n")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Do scaffold permutations.', prog='scaffold_permutations.py')
+    parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
+    parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['p8064', 'p7704', 'p7560'])
+    parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
+    parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
+    parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
+    
+    #args = parser.parse_args(['/Users/jonasfunke/Documents/FRET_STAGE/test', 'p8064', '--positions', '2,3', '--alpha_value'])
+    args = parser.parse_args()
         
-    file_full_path_and_name = os.path.abspath( os.path.expanduser( sys.argv[1] ))
-    seq_name = sys.argv[2]
+    file_full_path_and_name = os.path.abspath( os.path.expanduser( args.path_to_json[0] ))
+    seq_name = args.scaffold[0]
 
+    
+    base_coords = []
+    if args.positions > 0:
+        for pos in args.positions:
+            base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
+        
     #%%
-    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v7.json'
-    #seq_name = 'p8064'
+    file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v7.json'
+    seq_name = 'p8064'
     
     # parse filename and create output directory
     file_name = os.path.basename( file_full_path_and_name )
@@ -157,47 +170,115 @@ def main():
             staple_indices.append(cur_strand)
                     
         
-    #%% Loop through scaffold permutations and write sequencs of black oligos 
+    #%% Loop through scaffold permutations  
+    
+    # get indices of black colored oligos
+    reportcolor = 3355443 # this is the decimal value corresponding to 33333
+    reportoligo_scaffold_indices =[]
+    scaffold_bases_init =[]
+    if args.black_oligos:
+        for strand in dna_structure.strands:
+            if strand.icolor==reportcolor:
+                strand_scaffold_indeces = []
+                for base in strand.tour:
+                    if base.seq is not 'N':
+                        strand_scaffold_indeces.append(physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)])          
+                #strand_scaffold_indeces.reverse() # reverse the sequence to obtain 5' to 3'        
+                reportoligo_scaffold_indices.append(strand_scaffold_indeces)
+        print('Number of black oligos: '+str(len(reportoligo_scaffold_indices)))
+        
+    # get indeces on scaffold from candnano lattice positions     
+    base_coords_on_scaffold = []
+    for cur_coord in base_coords:
+       # get base from helix and position coordinates
+       cur_base = dna_structure.structure_helices_map[cur_coord[0]].scaffold_pos[cur_coord[1]]
+       i = physical_index[dna_structure.strands[scaffold_id].get_base_index(cur_base)] 
+       base_coords_on_scaffold.append(i)
+
+    #%%          
     #sequence of scaffold in design, this includes skips as 'N' 
     design_scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    physical_scaffold_sequence = design_scaffold_sequence.replace('N', '')
+    
     #physical sequence of scaffold, this is the true scaffold sequence 
     physical_scaffold_length = len(design_scaffold_sequence)-design_scaffold_sequence.count('N')
     design_scaffold_length = len(design_scaffold_sequence)
     
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+
+
     T_crit = 45.
     alpha_value = []
-    
+    base_list = []
+    reportoligo_sequences = []
     # loop through scaffold permutations in physical space
     for i in range(0, physical_scaffold_length):
     
-        if i%100 is 0: print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length))
+        if i%100 is 0: 
+            #print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length), end='')
+        
+            done = 100*float(i)/physical_scaffold_length
+            # the exact output you're looking for:
+            sys.stdout.write("[%-100s] %d%% done, iteration %i of %i" % ('='*int(done/1), done, i, physical_scaffold_length))
+            sys.stdout.write('\r')            
+            sys.stdout.flush()
         
         # calculate alpha value
-        alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit, 0))
-            
-        if i==0: print('Current alpha value is ' + str(alpha_value[-1]))
-            
+        if args.alpha_value:
+            alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit, 0))
+            #if i==0: print("Current alpha value is " + str(alpha_value[-1]))
+        
+        # get the bases at the current rotation
+        cur_base_list = []
+        for cur_base_index in base_coords_on_scaffold:
+            cur_base_list.append(physical_scaffold_sequence[(cur_base_index+i)%physical_scaffold_length])
+    
+        base_list.append(cur_base_list)
+        
+        # black oligos
+        if args.black_oligos:
+            tmp = []
+            for strand in reportoligo_scaffold_indices:
+                cur_strand = []
+                for baseindex in strand:
+                    cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
+                tmp.append(''.join(cur_strand))
+            reportoligo_sequences.append(tmp)
+                    
+                
+        
         # determine start of scaffold in design
         #i_d = design_index[(-i)%physical_scaffold_length]
         #print('Alpha value ' + str(alpha_value[-1]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p))
 
         #print('Rotation ' + str(i) + ', alpha value ' + str(alpha_value[-1]))
         #print('Rotation '+str(i) + ' alpha = '+str(round(alpha_value[-1],2)) )
-        
+    sys.stdout.write('\n')            
+
     #%%
-    print('Maximal alpha values:')
-    i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
-    for j in range(10):
-        i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
-        print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
-        
-        
+    if args.alpha_value:
+        print('Maximal alpha values:')
+        i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
+        for j in range(10):
+            i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
+            print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
+              
+
     #%%
-        
-    file_out = output_path+'_alpha_values.csv'
+    file_out = output_path+'_scaffold-permutations.csv'
     with open(file_out, 'wb') as csvfile:
         outputwriter = csv.writer(csvfile, delimiter=';')
-        tmp = ['Permutation', 'Start helix', 'Start position', 'Alpha_value']
+        tmp = ['Permutation', 'Start helix', 'Start position']
+        
+        if args.alpha_value:
+            tmp.append('Alpha_value')
+            
+        for cur_coord in base_coords:
+            tmp.append('H' + str(cur_coord[0]) + ',' + str(cur_coord[1]))
+        
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('Black oligo '+ str(i))
+            
         outputwriter.writerow(tmp)
         
         # loop through scaffold permutations in physical space
@@ -207,12 +288,23 @@ def main():
             i_d = design_index[(-i)%physical_scaffold_length]
 
             # write data for this rotation
-            tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p), alpha_value[i]]            
+            tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p)]            
+            if args.alpha_value:
+                tmp.append(alpha_value[i])
+            
+            for cur_base in base_list[i]:
+                tmp.append(cur_base)
+                
+            if args.black_oligos:
+                for strand in reportoligo_sequences[i]:
+                    tmp.append(strand)
+            
             outputwriter.writerow(tmp)
         print('Output written to: ' + file_out)   
 
-    print('REMARK: alpha values of the modified design might differ slightly form the predicted alpha values. Altered staple segmentation caused by shifting the scaffold starting point can slightly change the final alpha value.')        
-        
+    if args.alpha_value:
+        print('REMARK: alpha values of the modified design might differ slightly form the predicted alpha values. Altered staple segmentation caused by shifting the scaffold starting point can slightly change the final alpha value.')        
+     
         
         
 #%%
