@@ -133,7 +133,7 @@ def main():
             domain_max_length.append([strand.id, max(cur_domain_len)])
             number_of_domains.append([strand.id, len(cur_domain_mt)]) # this will not incude polyT overhangs as separate domains
             #if max(cur_domain_mt) >= 45. :
-            print(cur_strand)
+            #print(cur_strand)
 
     # compute histograms
     my_histogram(staple_length, output_path, 'Length of staples', 'bases')

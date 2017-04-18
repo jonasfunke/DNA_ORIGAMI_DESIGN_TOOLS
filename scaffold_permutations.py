@@ -23,8 +23,8 @@ try:
     import nanodesign
 except ImportError:
     import sys
-    base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -126,8 +126,8 @@ def main():
             base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
         
     #%%
-    file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v7.json'
-    seq_name = 'p8064'
+    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/small.json'
+    #seq_name = 'p8064'
     
     # parse filename and create output directory
     file_name = os.path.basename( file_full_path_and_name )
@@ -151,7 +151,7 @@ def main():
             else:
                 print('WARNING: Multiple scaffolds detected')
     
-    #%% make the maps, that map design to physical indeces
+    #%% create the maps, that map design to physical indeces
     design_index, physical_index = get_index_lists(dna_structure, scaffold_id)
      
     # get the indices of the staples on the scaffold strand
@@ -244,15 +244,7 @@ def main():
                     cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
                 tmp.append(''.join(cur_strand))
             reportoligo_sequences.append(tmp)
-                    
-                
-        
-        # determine start of scaffold in design
-        #i_d = design_index[(-i)%physical_scaffold_length]
-        #print('Alpha value ' + str(alpha_value[-1]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p))
 
-        #print('Rotation ' + str(i) + ', alpha value ' + str(alpha_value[-1]))
-        #print('Rotation '+str(i) + ' alpha = '+str(round(alpha_value[-1],2)) )
     sys.stdout.write('\n')            
 
     #%%
@@ -268,7 +260,7 @@ def main():
     file_out = output_path+'_scaffold-permutations.csv'
     with open(file_out, 'wb') as csvfile:
         outputwriter = csv.writer(csvfile, delimiter=';')
-        tmp = ['Permutation', 'Start helix', 'Start position']
+        tmp = ['Permutation', 'Scaffold start helix', 'Scaffold start position']
         
         if args.alpha_value:
             tmp.append('Alpha_value')
