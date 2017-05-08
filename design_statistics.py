@@ -52,6 +52,7 @@ def bases_bound_to_scaffold(strand): # computes number of bases that are bound t
     return len(tmp.translate(None, 'N'))
 
 
+
 def my_histogram(data_in, output_path, name, unit):
     data=[data_in[i][1] for i in range(len(data_in))]
     bin_width = 1.
@@ -66,6 +67,24 @@ def my_histogram(data_in, output_path, name, unit):
     fig.savefig(output_path+'_stats_' + name.replace(' ','_')+ '.pdf')
     #plt.show()
     plt.close() 
+
+
+# THIS IS REDUNDAND IMPROVE THIS
+
+def write_colored_json_manual(data, dna_structure, colormap, output_file, lim ): # write cadnano file colorcoded using a 2D list [[index, value], [index+1, value],...]
+    x_min = lim[0]
+    x_max = lim[1]
+    dna_structure_out = dna_structure
+    for i in range(len(data)):
+        x = data[i][1]
+        colorindex = int(254*(x-x_min)/(x_max-x_min))+1 # asumin 0-255 colors in colormap
+        dna_structure_out.strands[data[i][0]].color = list(colormap(colorindex)[0:-1])                
+       
+    con = Converter()
+    con.dna_structure = dna_structure_out
+    con.write_cadnano_file(output_file)
+    
+    
 
 def write_colored_json(data, dna_structure, colormap, output_file ): # write cadnano file colorcoded using a 2D list [[index, value], [index+1, value],...]
     x_min = min([data[i][1] for i in range(len(data))])
@@ -117,24 +136,34 @@ def main():
     domain_max_melt = [] # largest domain melting-temperature of staple
     domain_max_length = [] #longest domain of staple
     number_of_domains = [] #number of domains of staple
+    number_of_long_domains = [] #length of domains
     for strand in dna_structure.strands:
         if not strand.is_scaffold:
             cur_strand = []
             staple_length.append([strand.id, get_strand_length(strand)])
             cur_domain_len = []
             cur_domain_mt = []
+            n_long = 0
             for domain in strand.domain_list:
                 cur_domain_len.append(len(domain.sequence.replace('N', '')))
                 cur_strand.append(domain.sequence.replace('N', ''))
                 if len(domain.sequence.replace('N', ''))>0:
                     cur_domain_mt.append(MeltingTemp.Tm_NN(Seq(domain.sequence.replace('N', ''))))
+                # check if staple has more than one long domain (>10 bp) (this can be optimized / made nicer)
+                if len(domain.sequence.replace('N', '')) > 10:
+                    n_long = n_long + 1
             domain_max_melt.append([strand.id, max(cur_domain_mt)])
             avg_domain_length.append([strand.id, numpy.mean(cur_domain_len)])
             domain_max_length.append([strand.id, max(cur_domain_len)])
             number_of_domains.append([strand.id, len(cur_domain_mt)]) # this will not incude polyT overhangs as separate domains
+            number_of_long_domains.append([strand.id, n_long])                        
             #if max(cur_domain_mt) >= 45. :
             #print(cur_strand)
 
+
+    
+        
+        
     # compute histograms
     my_histogram(staple_length, output_path, 'Length of staples', 'bases')
     my_histogram(avg_domain_length, output_path, 'Average staple-domain length', 'bp')
@@ -147,7 +176,9 @@ def main():
     write_colored_json(domain_max_melt, dna_structure, cm.afmhot, output_path+'_colorcoded_LargestDomainMelt.json' )
     write_colored_json(domain_max_length, dna_structure, cm.afmhot, output_path+'_colorcoded_LongestDomainMelt.json' )
     write_colored_json(number_of_domains, dna_structure, cm.afmhot, output_path+'_colorcoded_NumberOfDomains.json' )
-    
+    write_colored_json(number_of_long_domains, dna_structure, cm.bwr, output_path+'_colorcoded_NumberOfLongDomains.json')
+    write_colored_json_manual(number_of_long_domains, dna_structure, cm.coolwarm, output_path+'_colorcoded_NumberOfLongDomains_binary.json', [0, 2])
+
     # compute domain length statitics
     domain_lengths = []
     for domain in dna_structure.domain_list:

@@ -125,6 +125,7 @@ def main():
         for pos in args.positions:
             base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
         
+    
     #%%
     #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/small.json'
     #seq_name = 'p8064'
@@ -168,10 +169,7 @@ def main():
                         cur_domain.append(i)
                 cur_strand.append(cur_domain)
             staple_indices.append(cur_strand)
-                    
-        
-    #%% Loop through scaffold permutations  
-    
+                        
     # get indices of black colored oligos
     reportcolor = 3355443 # this is the decimal value corresponding to 33333
     reportoligo_scaffold_indices =[]
