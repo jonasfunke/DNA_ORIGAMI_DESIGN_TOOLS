@@ -108,7 +108,7 @@ def main():
     # Parse arguments, TODO: use parser object
     parser = argparse.ArgumentParser(description='Do scaffold permutations.', prog='scaffold_permutations.py')
     parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
-    parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['p8064', 'p7704', 'p7560'])
+    parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
     parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
     parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
     parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
