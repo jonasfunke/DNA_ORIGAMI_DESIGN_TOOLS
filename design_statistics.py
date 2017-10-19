@@ -203,6 +203,11 @@ def main():
             scaffold_id = strand.id
     print('Alpha value is '+str(N_good / float(len(domain_max_melt))) + ' on H' + str(dna_structure.strands[scaffold_id].tour[0].h) + ' at position '  + str(dna_structure.strands[scaffold_id].tour[0].p) )
     
+    n_long_tot = 0
+    for s in number_of_long_domains:
+        if s[1]>1:
+            n_long_tot = n_long_tot + 1
+    print('Number of oligos with more than one long (>10 bp) domains: ' + str(n_long_tot))
                                    
 #%%
 
