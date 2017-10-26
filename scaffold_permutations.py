@@ -269,6 +269,9 @@ def main():
         for i in range(0,len(reportoligo_scaffold_indices)):
             tmp.append('Black oligo '+ str(i))
             
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('Black oligo '+ str(i)+' T_m')
+        
         outputwriter.writerow(tmp)
         
         # loop through scaffold permutations in physical space
@@ -288,7 +291,11 @@ def main():
             if args.black_oligos:
                 for strand in reportoligo_sequences[i]:
                     tmp.append(strand)
-            
+                    
+            if args.black_oligos:
+                for strand in reportoligo_sequences[i]:
+                    tmp.append(round(MeltingTemp.Tm_NN(Seq(''.join(strand))),1))
+                    
             outputwriter.writerow(tmp)
         print('Output written to: ' + file_out)   
 
