@@ -137,6 +137,7 @@ def main():
     domain_max_length = [] #longest domain of staple
     number_of_domains = [] #number of domains of staple
     number_of_long_domains = [] #length of domains
+    strand_melting_temp = []
     for strand in dna_structure.strands:
         if not strand.is_scaffold:
             cur_strand = []
@@ -156,7 +157,8 @@ def main():
             avg_domain_length.append([strand.id, numpy.mean(cur_domain_len)])
             domain_max_length.append([strand.id, max(cur_domain_len)])
             number_of_domains.append([strand.id, len(cur_domain_mt)]) # this will not incude polyT overhangs as separate domains
-            number_of_long_domains.append([strand.id, n_long])                        
+            number_of_long_domains.append([strand.id, n_long])        
+            strand_melting_temp.append([strand.id, MeltingTemp.Tm_NN(Seq(''.join(cur_strand)))])
             #if max(cur_domain_mt) >= 45. :
             #print(cur_strand)
 
@@ -170,6 +172,7 @@ def main():
     my_histogram(number_of_domains, output_path, 'Number of domains per staple', '')
     my_histogram(domain_max_melt, output_path, 'Melting temperature of domain with highest melting temperature', 'deg')
     my_histogram(domain_max_length, output_path, 'Length of longest domain', '')
+    my_histogram(strand_melting_temp, output_path, 'Strand melting temperature', 'deg')
         
     # wirte json files
     write_colored_json(staple_length, dna_structure, cm.afmhot, output_path+'_colorcoded_StapleLength.json' )
@@ -178,7 +181,7 @@ def main():
     write_colored_json(number_of_domains, dna_structure, cm.afmhot, output_path+'_colorcoded_NumberOfDomains.json' )
     write_colored_json(number_of_long_domains, dna_structure, cm.bwr, output_path+'_colorcoded_NumberOfLongDomains.json')
     write_colored_json_manual(number_of_long_domains, dna_structure, cm.coolwarm, output_path+'_colorcoded_NumberOfLongDomains_binary.json', [0, 2])
-
+    write_colored_json(strand_melting_temp, dna_structure, cm.afmhot, output_path+'_colorcoded_StrandMeltingTemperature.json')
     # compute domain length statitics
     domain_lengths = []
     for domain in dna_structure.domain_list:
