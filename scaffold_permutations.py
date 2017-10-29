@@ -13,6 +13,7 @@ from __future__ import print_function
 import os
 import csv
 import argparse
+import numpy
 from Bio.SeqUtils import MeltingTemp # compute melting temperatures
 from Bio.Seq import Seq #create biopython sequences
 #from Bio.Alphabet import generic_dna
@@ -62,7 +63,9 @@ def get_index_lists(dna_structure, scaffold_id):
             
     return physical_to_design, design_to_physical
     
-def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_id, T_crit, print_staples):
+
+# find the domain with the highest melting temperature of each staple 
+def get_max_domain_melt(dna_structure, staple_indices, scaffold_rotation, scaffold_id, print_staples):
     # physical scaffold sequence
     scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id]).replace('N', '')
     # physical scaffold length
@@ -94,13 +97,23 @@ def get_alpha_value(dna_structure, staple_indices, scaffold_rotation, scaffold_i
         staple_domain_melt.append(max(cur_domain_melt))
         #if print_staples:
         #    print(str(cur_strand))
-    # calculate alpha value
-    N_good = 0
-    for T in staple_domain_melt:
-        if T >= T_crit:
-            N_good = N_good + 1
+    return staple_domain_melt
+
+
+# calulate alpha values for each tempereture given in T_crit
+def get_alpha_values(staple_domain_melt, T_crit):
+    
+    alpha_values = []
+    for T_cur in T_crit:
+        N_good = 0
+        for T in staple_domain_melt:
+            if T >= T_cur:
+                N_good = N_good + 1
+        alpha_values.append( N_good / float(len(staple_domain_melt)) )
+    
+    
     #print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(staple_domain_melt)))
-    return N_good / float(len(staple_domain_melt))
+    return alpha_values
     
 #%%
 def main():
@@ -110,7 +123,8 @@ def main():
     parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
     parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
     parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
-    parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
+    #parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
+    parser.add_argument('--alpha_value', type=str, nargs='?', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
     parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
     
     #args = parser.parse_args(['/Users/jonasfunke/Documents/FRET_STAGE/test', 'p8064', '--positions', '2,3', '--alpha_value'])
@@ -125,7 +139,11 @@ def main():
         for pos in args.positions:
             base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
         
-    
+    #print(args.alpha_value)
+    if len(args.alpha_value) > 0:
+        #args.alpha_value = tmp;
+        alpha_temperatures = [int(a) for a in args.alpha_value.split(',')] # [[H,p], [H,p], ...]
+    #print(alpha_temperatures)
     #%%
     #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/small.json'
     #seq_name = 'p8064'
@@ -205,10 +223,11 @@ def main():
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
 
 
-    T_crit = 45.
-    alpha_value = []
+    #T_crit = 45.
+    alpha_values = []
     base_list = []
     reportoligo_sequences = []
+    mean_var = []
     # loop through scaffold permutations in physical space
     for i in range(0, physical_scaffold_length):
     
@@ -222,9 +241,11 @@ def main():
             sys.stdout.flush()
         
         # calculate alpha value
-        if args.alpha_value:
-            alpha_value.append(get_alpha_value(dna_structure, staple_indices, i, scaffold_id, T_crit, 0))
+        if len(alpha_temperatures)>0:
+            staple_domain_max_melt = get_max_domain_melt(dna_structure, staple_indices, i, scaffold_id, 0)
+            alpha_values.append(get_alpha_values(staple_domain_max_melt, alpha_temperatures))
             #if i==0: print("Current alpha value is " + str(alpha_value[-1]))
+            mean_var.append([numpy.mean(staple_domain_max_melt), numpy.var(staple_domain_max_melt)])
         
         # get the bases at the current rotation
         cur_base_list = []
@@ -245,14 +266,16 @@ def main():
 
     sys.stdout.write('\n')            
 
+    #print(alpha_values)
     #%%
-    if args.alpha_value:
-        print('Maximal alpha values:')
-        i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
-        for j in range(10):
-            i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
-            print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
+    #if args.alpha_value:
+    #    print('Maximal alpha values:')
+    #    i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
+    #    for j in range(10):
+    #        i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
+    #        print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
               
+    #print(mean_var)
 
     #%%
     file_out = output_path+'_scaffold-permutations.csv'
@@ -260,8 +283,12 @@ def main():
         outputwriter = csv.writer(csvfile, delimiter=';')
         tmp = ['Permutation', 'Scaffold start helix', 'Scaffold start position']
         
-        if args.alpha_value:
-            tmp.append('Alpha_value')
+        for i in range(0,len(alpha_temperatures)):
+            tmp.append('Alpha_value_' + str(alpha_temperatures[i]))
+            
+        if len(alpha_temperatures)>0:
+            tmp.append('Mean of largest domain Tm')
+            tmp.append('Variance of largest domain Tm')
             
         for cur_coord in base_coords:
             tmp.append('H' + str(cur_coord[0]) + ',' + str(cur_coord[1]))
@@ -282,8 +309,12 @@ def main():
 
             # write data for this rotation
             tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p)]            
-            if args.alpha_value:
-                tmp.append(alpha_value[i])
+            for j in range(0, len(alpha_temperatures)):
+                tmp.append(alpha_values[i][j])
+            
+            if len(alpha_temperatures)>0:
+                tmp.append(mean_var[i][0])
+                tmp.append(mean_var[i][1])
             
             for cur_base in base_list[i]:
                 tmp.append(cur_base)
