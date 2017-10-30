@@ -14,6 +14,7 @@ import __future__
 import os
 import numpy #for writing matrices
 import matplotlib.pyplot as plt #plotting 
+import argparse # parsing arguments
 from matplotlib import cm #colormaps for coloring staples
 from Bio.SeqUtils import MeltingTemp # compute melting temperatures
 from Bio.Seq import Seq #create biopython sequences
@@ -69,26 +70,16 @@ def my_histogram(data_in, output_path, name, unit):
     plt.close() 
 
 
-# THIS IS REDUNDAND IMPROVE THIS
-
-def write_colored_json_manual(data, dna_structure, colormap, output_file, lim ): # write cadnano file colorcoded using a 2D list [[index, value], [index+1, value],...]
-    x_min = lim[0]
-    x_max = lim[1]
-    dna_structure_out = dna_structure
-    for i in range(len(data)):
-        x = data[i][1]
-        colorindex = int(254*(x-x_min)/(x_max-x_min))+1 # asumin 0-255 colors in colormap
-        dna_structure_out.strands[data[i][0]].color = list(colormap(colorindex)[0:-1])                
-       
-    con = Converter()
-    con.dna_structure = dna_structure_out
-    con.write_cadnano_file(output_file)
     
     
 
-def write_colored_json(data, dna_structure, colormap, output_file ): # write cadnano file colorcoded using a 2D list [[index, value], [index+1, value],...]
-    x_min = min([data[i][1] for i in range(len(data))])
-    x_max = max([data[i][1] for i in range(len(data))])
+def write_colored_json(data, dna_structure, colormap, output_file, limits): # write cadnano file colorcoded using a 2D list [[index, value], [index+1, value],...]
+    if len(limits)>0: 
+        x_min = limits[0]
+        x_max = limits[1]
+    else: # if no limits are given, use max and min
+        x_min = min([data[i][1] for i in range(len(data))])
+        x_max = max([data[i][1] for i in range(len(data))])
     dna_structure_out = dna_structure
     for i in range(len(data)):
         x = data[i][1]
@@ -102,15 +93,16 @@ def write_colored_json(data, dna_structure, colormap, output_file ): # write cad
 
 #%%
 def main():
-    # Parse arguments, TODO: use parser object
-    if (len(sys.argv) != 3):
-        sys.stderr.write("**** ERROR: Wrong number of arguments.\n") 
-        sys.stderr.write("Usage: design_statistics.py <filename> scaffold_sequence\n")
-        sys.stderr.write("Output: If <filename> is path/name.json, output will be placed in path/name_analysis/\n")
-        sys.exit(1)
-        
-    file_full_path_and_name = os.path.abspath( os.path.expanduser( sys.argv[1] ))
-    seq_name = sys.argv[2]
+    parser = argparse.ArgumentParser(description='Analyze cadnano design.', prog='design_statistics.py')
+    parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
+    parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
+    parser.add_argument('--alpha_value', type=str, nargs='?', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
+    parser.add_argument('--T_crit', type=float, nargs='?', default=45.0 , help='Melting temperture to color json. If not used, 45deg will be used. Example: --T_crit 35')
+    args = parser.parse_args()
+    
+    T_crit = args.T_crit
+    file_full_path_and_name = os.path.abspath( os.path.expanduser( args.path_to_json[0] )) #os.path.abspath( os.path.expanduser( sys.argv[1] ))
+    seq_name = args.scaffold[0] #sys.argv[2]
 
     #%%
     #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/Designs/FS-v6_spectrometer/twist_screen/FS-v6_019_deacivated.json'
@@ -138,6 +130,7 @@ def main():
     number_of_domains = [] #number of domains of staple
     number_of_long_domains = [] #length of domains
     strand_melting_temp = []
+    larger_than_T_crit = [] # bool whether max domain melt is larger than T_crit
     for strand in dna_structure.strands:
         if not strand.is_scaffold:
             cur_strand = []
@@ -159,6 +152,8 @@ def main():
             number_of_domains.append([strand.id, len(cur_domain_mt)]) # this will not incude polyT overhangs as separate domains
             number_of_long_domains.append([strand.id, n_long])        
             strand_melting_temp.append([strand.id, MeltingTemp.Tm_NN(Seq(''.join(cur_strand)))])
+            larger_than_T_crit.append([strand.id, int(max(cur_domain_mt)>=T_crit)])
+            
             #if max(cur_domain_mt) >= 45. :
             #print(cur_strand)
 
@@ -175,13 +170,14 @@ def main():
     my_histogram(strand_melting_temp, output_path, 'Strand melting temperature', 'deg')
         
     # wirte json files
-    write_colored_json(staple_length, dna_structure, cm.afmhot, output_path+'_colorcoded_StapleLength.json' )
-    write_colored_json(domain_max_melt, dna_structure, cm.afmhot, output_path+'_colorcoded_LargestDomainMelt.json' )
-    write_colored_json(domain_max_length, dna_structure, cm.afmhot, output_path+'_colorcoded_LongestDomainMelt.json' )
-    write_colored_json(number_of_domains, dna_structure, cm.afmhot, output_path+'_colorcoded_NumberOfDomains.json' )
-    write_colored_json(number_of_long_domains, dna_structure, cm.bwr, output_path+'_colorcoded_NumberOfLongDomains.json')
-    write_colored_json_manual(number_of_long_domains, dna_structure, cm.coolwarm, output_path+'_colorcoded_NumberOfLongDomains_binary.json', [0, 2])
-    write_colored_json(strand_melting_temp, dna_structure, cm.afmhot, output_path+'_colorcoded_StrandMeltingTemperature.json')
+    write_colored_json(staple_length, dna_structure, cm.afmhot, output_path+'_colorcoded_StapleLength.json', [])
+    write_colored_json(domain_max_melt, dna_structure, cm.afmhot, output_path+'_colorcoded_MeltTempOfLargestDomainMelt_0-60.json', [0, 60] )
+    write_colored_json(domain_max_length, dna_structure, cm.afmhot, output_path+'_colorcoded_LengthOfLongestDomain.json', [] )
+    write_colored_json(number_of_domains, dna_structure, cm.afmhot, output_path+'_colorcoded_NumberOfDomains.json', [] )
+    write_colored_json(number_of_long_domains, dna_structure, cm.bwr, output_path+'_colorcoded_NumberOfLongDomains.json',[])
+    write_colored_json(number_of_long_domains, dna_structure, cm.coolwarm, output_path+'_colorcoded_NumberOfLongDomains_binary.json', [0, 2])
+    write_colored_json(strand_melting_temp, dna_structure, cm.afmhot, output_path+'_colorcoded_StrandMeltingTemperature_0-60.json', [0, 60])
+    write_colored_json(larger_than_T_crit, dna_structure, cm.bwr, output_path+'_colorcoded_LargerEqualThan'+str(T_crit)+'deg.json',[])
     # compute domain length statitics
     domain_lengths = []
     for domain in dna_structure.domain_list:
