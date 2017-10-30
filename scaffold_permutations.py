@@ -124,7 +124,7 @@ def main():
     parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
     parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
     #parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
-    parser.add_argument('--alpha_value', type=str, nargs='?', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
+    parser.add_argument('--alpha_value', type=str, nargs='?', const='45', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
     parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
     
     #args = parser.parse_args(['/Users/jonasfunke/Documents/FRET_STAGE/test', 'p8064', '--positions', '2,3', '--alpha_value'])
@@ -140,9 +140,11 @@ def main():
             base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
         
     #print(args.alpha_value)
-    if len(args.alpha_value) > 0:
+    alpha_temperatures = []
+    if args.alpha_value is not None:
         #args.alpha_value = tmp;
         alpha_temperatures = [int(a) for a in args.alpha_value.split(',')] # [[H,p], [H,p], ...]
+        
     #print(alpha_temperatures)
     #%%
     #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/small.json'
