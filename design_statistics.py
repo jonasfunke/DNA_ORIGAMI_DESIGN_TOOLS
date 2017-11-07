@@ -90,6 +90,29 @@ def write_colored_json(data, dna_structure, colormap, output_file, limits): # wr
     con.dna_structure = dna_structure_out
     con.write_cadnano_file(output_file)
 
+def get_sequence(strand):
+    cur_seq = []
+    for base in strand.tour:
+        cur_seq.append(base.seq)
+    return ''.join(cur_seq)
+
+def get_index_lists(dna_structure, scaffold_id):
+    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    
+    physical_to_design = []
+    design_to_physical =[]
+    
+    physical_index = 0
+    for design_index in range(len(scaffold_sequence)):
+        #physical_index.append(i-scaffold_sequence[0:design_index+1].count('N'))
+        if scaffold_sequence[design_index] is 'N':
+            design_to_physical.append(physical_index)
+        else:
+            physical_to_design.append(design_index)
+            design_to_physical.append(physical_index)
+            physical_index = physical_index+1
+            
+    return physical_to_design, design_to_physical
 
 #%%
 def main():
@@ -157,9 +180,10 @@ def main():
             #if max(cur_domain_mt) >= 45. :
             #print(cur_strand)
 
-
+            
     
-        
+    
+    #%%
         
     # compute histograms
     my_histogram(staple_length, output_path, 'Length of staples', 'bases')
@@ -207,7 +231,84 @@ def main():
         if s[1]>1:
             n_long_tot = n_long_tot + 1
     print('Number of oligos with more than one long (>10 bp) domains: ' + str(n_long_tot))
-                                   
+                 
+
+    #%% scaffold loop lengths distribution
+    #determine scaffold strand id
+    scaffold_id = -1
+    for strand in dna_structure.strands:
+        if strand.is_scaffold:
+            print('Scaffold strand has index '+ str(strand.id))
+            if scaffold_id is -1 :
+                scaffold_id = strand.id
+            else:
+                print('WARNING: Multiple scaffolds detected')
+
+    # create maps, that map design to physical scaffold indeces
+    design_index, physical_index = get_index_lists(dna_structure, scaffold_id)
+
+    #sequence of scaffold in design, this includes skips as 'N' 
+    design_scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    physical_scaffold_length = len(design_scaffold_sequence)-design_scaffold_sequence.count('N')
+
+    # get the indices of the staples on the scaffold strand and scaffold loop length
+    staple_indices = []
+    loop_lengths = []
+    for strand in dna_structure.strands:
+        if not strand.is_scaffold:  
+            cur_strand = []
+            for domain in strand.domain_list:
+                cur_domain = []
+                for base in domain.base_list:
+                    if base.seq is not 'N':
+                        # index of base on the physical scaffold
+                        i = physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)]
+                        cur_domain.append(i)
+                cur_strand.append(cur_domain)
+            staple_indices.append(cur_strand)
+            
+            cur_strand_loop_length = []
+            for i in range(1,len(cur_strand)):
+                if len(cur_strand[i])>0 and len(cur_strand[i-1])>0:
+                    d = abs(cur_strand[i][0]-cur_strand[i-1][-1])
+                    cur_strand_loop_length.append(min(d, physical_scaffold_length-d))
+                
+            loop_lengths.append(cur_strand_loop_length)
+        
+    # make historgram
+    ll_tmp = []
+    for i in range(len(loop_lengths)):
+        for j in range(len(loop_lengths[i])):
+            ll_tmp.append(loop_lengths[i][j])        
+    
+    fig = plt.figure(figsize = (12,6))
+    
+    plt.subplot(121)
+    bin_width = 500.
+    x_min = 0
+    x_max = 5000
+    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
+    plt.hist(ll_tmp, bins,  histtype='bar', label='loop length') 
+    plt.title("Average loop length = " +str(round(numpy.mean(ll_tmp),1)) + ' bases')
+    plt.xlabel('Loop length [bases]')
+    plt.ylabel('Frequency')
+    
+    plt.subplot(122)
+    bin_width = 0.5
+    x_min = 1
+    x_max = numpy.log(5000)
+    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
+    plt.hist(numpy.log(ll_tmp), bins,  histtype='bar') 
+    plt.title("Average log(loop length) = " +str(round(numpy.mean(numpy.log(ll_tmp)),1)) )
+    plt.xlabel('Log(Loop length [bases])')
+    plt.ylabel('Frequency')
+    
+    fig.savefig(output_path+'_stats_ScaffoldLoopLengthDistribution.pdf')
+    #plt.show()
+    plt.close()                
+    print('Average loop length is ' + str(numpy.mean(ll_tmp)) + ' bases.')
+    print('Average log(loop length) is ' + str(numpy.mean(numpy.log(ll_tmp))) + ' bases.')
+
 #%%
 
 if __name__ == '__main__':
