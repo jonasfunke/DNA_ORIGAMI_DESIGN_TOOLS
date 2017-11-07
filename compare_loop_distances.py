@@ -229,6 +229,100 @@ def main():
     print(numpy.mean(numpy.log(ll_v8)))
     print(numpy.mean(numpy.log(ll_v9)))        
 #%%
+    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T1_v1.2.json'
+    seq_name = 'p8064'
+   
+    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
+    
+    ll_v1 = []
+    for i in range(len(loop_lengths)):
+        for j in range(len(loop_lengths[i])):
+            ll_v1.append(loop_lengths[i][j])
+            
+    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T1_v2.json'
+    seq_name = 'p8064'
+   
+    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
+    
+    ll_v2 = []
+    for i in range(len(loop_lengths)):
+        for j in range(len(loop_lengths[i])):
+            ll_v2.append(loop_lengths[i][j])
+            
+    
+    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T3D_v1.json'
+    seq_name = 'p8064'
+   
+    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
+    
+    ll_v3 = []
+    for i in range(len(loop_lengths)):
+        for j in range(len(loop_lengths[i])):
+            ll_v3.append(loop_lengths[i][j])        
+    #%%
+    output_path = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/'
+    bin_width = 500.
+    x_min = 0
+    x_max = 5000
+    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
+    
+    fig = plt.figure()
+    plt.hist(ll_v1, bins, alpha=0.5,  histtype='bar', label='T1_v1.2') 
+    plt.hist(ll_v2, bins, alpha=0.5, histtype='bar', label='T1_v2') 
+    plt.hist(ll_v3, bins, alpha=0.5, histtype='bar', label='T3D') 
+    #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
+    plt.xlabel('loop length [bases]')
+    plt.ylabel('Frequency')
+    plt.legend(loc='upper right')
+    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
+    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution.pdf')
+    plt.show()
+    #plt.close() 
+
+    
+    bin_width = 0.1
+    x_min = 1
+    x_max = numpy.log(5000)
+    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
+    
+    fig = plt.figure()
+    plt.hist(numpy.log(ll_v1), bins, alpha=0.5,  histtype='step', label='T1_v1.2') 
+    plt.hist(numpy.log(ll_v2), bins, alpha=0.5, histtype='step', label='T1_v2') 
+    plt.hist(numpy.log(ll_v3), bins,  alpha=0.5, histtype='step', label='T3D') 
+    #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
+    plt.xlabel('log(loop length)')
+    plt.ylabel('Frequency')
+    plt.legend(loc='upper right')
+    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
+    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution_log.pdf')
+    plt.show()
+    
+    
+    #%%
+    bin_width = 0.1
+    x_min = 1
+    x_max = numpy.log(5000)
+    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
+    
+    fig = plt.figure()
+    plt.hist(numpy.log(ll_v1), bins, alpha=0.5,  histtype='bar', label='T1_v1.2') 
+    #plt.hist(numpy.log(ll_v2), bins, alpha=0.5, histtype='bar', label='T1_v2') 
+    #plt.hist(numpy.log(ll_v3), bins,  alpha=0.5, histtype='bar', label='T3D') 
+    
+    plt.xlabel('log(loop length)')
+    plt.ylabel('Frequency')
+    plt.legend(loc='upper right')
+    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
+    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution_log2.pdf')
+    plt.show()
+    
+    #%%
+    print(numpy.mean(numpy.log(ll_v6)))
+    print(numpy.mean(numpy.log(ll_v7)))
+    print(numpy.mean(numpy.log(ll_v8)))
+    print(numpy.mean(numpy.log(ll_v9)))  
+    
+    #%%
 
 if __name__ == '__main__':
     main()
