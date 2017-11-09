@@ -25,8 +25,8 @@ try:
     import nanodesign
 except ImportError:
     import sys
-    base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -117,7 +117,7 @@ def get_staple_loop_lengths(path_to_file, scaffold_name):
                     d = abs(cur_strand[i][0]-cur_strand[i-1][-1])
                     cur_strand_loop_length.append(min(d, physical_scaffold_length-d))
                 
-            print(cur_strand_loop_length)
+            #print(cur_strand_loop_length)
             loop_lengths.append(cur_strand_loop_length)
                 
     return loop_lengths
@@ -126,201 +126,87 @@ def get_staple_loop_lengths(path_to_file, scaffold_name):
 def main():
     #%%      
     # Parse arguments, TODO: use parser object
-    #parser = argparse.ArgumentParser(description='Do scaffold permutations.', prog='scaffold_permutations.py')
-    #parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
-    #parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
+    parser = argparse.ArgumentParser(description='Compare json files.', prog='compare_loop_distances.py')
+  #  parser.add_argument('path_to_json', type=str, nargs='+', help='Path to json file')
+    parser.add_argument('input', type=str, nargs='+', help='Path to json file and scaffold')
+    #parser.add_argument('scaffold', type=str, nargs='+', help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7'])
     #parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
     #parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
     #parser.add_argument('--alpha_value', type=str, nargs='?', const='45', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
     #parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
     
-    #args = parser.parse_args()
+    args = parser.parse_args()
         
-    #file_full_path_and_name = os.path.abspath( os.path.expanduser( args.path_to_json[0] ))
-    #seq_name = args.scaffold[0]
+    filelocations = []
+    scaffolds = []
+    for i in range(0,len(args.input),2):
+        filelocations.append(args.input[i])
+        scaffolds.append(args.input[i+1])
+    output_path = os.path.dirname(filelocations[0])
+    
 
- 
-        
-    #print(alpha_temperatures)
     #%%
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v6.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
     
-    ll_v6 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v6.append(loop_lengths[i][j])
-        
-        
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v7.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
     
-    ll_v7 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v7.append(loop_lengths[i][j])
-            
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v8.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
+    ll_linear = []
+    loop_lengths = []
+    for i in range(len(filelocations)):
+        loop_lengths.append(get_staple_loop_lengths(filelocations[i], scaffolds[i]))
+        tmp = []
+        for j in range(len(loop_lengths[-1])):
+            for k in range(len(loop_lengths[-1][j])):
+                tmp.append(loop_lengths[-1][j][k])
+                
+        ll_linear.append(tmp)
+#    print(loop_lengths)
+    print(ll_linear)       
+
     
-    ll_v8 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v8.append(loop_lengths[i][j])
-            
-    
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/FS-v9.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
-    
-    ll_v9 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v9.append(loop_lengths[i][j])        
-    #%%
-    output_path = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/'
+    #output_path = '/Users/jonasfunke/Dropbox/Temporary/bullet_comparison/'
+    print(output_path)
     bin_width = 500.
     x_min = 0
     x_max = 5000
     bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
     
     fig = plt.figure()
-    plt.hist(ll_v6, bins, alpha=0.5,  histtype='bar', label='v6') 
-    plt.hist(ll_v7, bins, alpha=0.5, histtype='bar', label='v7') 
-    plt.hist(ll_v8, bins, alpha=0.5, histtype='bar', label='v8') 
-    plt.hist(ll_v9, bins, alpha=0.5, histtype='bar', label='v9') 
+    plt.subplot(121)
+    for i in range(len(ll_linear)):
+        plt.hist(ll_linear[i], bins, alpha=0.5,  histtype='step', label=os.path.basename(filelocations[i])) 
     #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
     plt.xlabel('loop length [bases]')
     plt.ylabel('Frequency')
     plt.legend(loc='upper right')
-    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'ScaffoldLoopLengthDistribution_log.pdf')
-    plt.show()
-    #plt.close() 
-
+    
+    plt.subplot(122)
     
     bin_width = 0.5
     x_min = 1
     x_max = numpy.log(5000)
     bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
     
-    fig = plt.figure()
-    plt.hist(numpy.log(ll_v6), bins, alpha=0.5,  histtype='step', label='v6') 
-    plt.hist(numpy.log(ll_v7), bins, alpha=0.5, histtype='step', label='v7') 
-    plt.hist(numpy.log(ll_v8), bins, alpha=0.5, histtype='step', label='v8') 
-    plt.hist(numpy.log(ll_v9), bins, alpha=0.5, histtype='step', label='v9') 
+    for i in range(len(ll_linear)):
+        plt.hist(numpy.log(ll_linear[i]), bins, alpha=0.5,  histtype='step', label=os.path.basename(filelocations[i])) 
+        print(os.path.basename(filelocations[i])+ ': '+ str(numpy.mean(numpy.log(ll_linear[i]))))
     #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
     plt.xlabel('log(loop length)')
     plt.ylabel('Frequency')
     plt.legend(loc='upper right')
+    
+    
+    
+    
+    
     #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'ScaffoldLoopLengthDistribution_log.pdf')
+    fig.savefig(output_path+'ScaffoldLoopLengthDistribution.pdf')
     plt.show()
     
-    print(numpy.mean(numpy.log(ll_v6)))
-    print(numpy.mean(numpy.log(ll_v7)))
-    print(numpy.mean(numpy.log(ll_v8)))
-    print(numpy.mean(numpy.log(ll_v9)))        
-#%%
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T1_v1.2.json'
-    seq_name = 'p8064'
+    
+    
+    
    
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
-    
-    ll_v1 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v1.append(loop_lengths[i][j])
-            
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T1_v2.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
-    
-    ll_v2 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v2.append(loop_lengths[i][j])
-            
-    
-    path_to_file = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/T3D_v1.json'
-    seq_name = 'p8064'
-   
-    loop_lengths = get_staple_loop_lengths(path_to_file, seq_name)
-    
-    ll_v3 = []
-    for i in range(len(loop_lengths)):
-        for j in range(len(loop_lengths[i])):
-            ll_v3.append(loop_lengths[i][j])        
-    #%%
-    output_path = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/'
-    bin_width = 500.
-    x_min = 0
-    x_max = 5000
-    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
-    
-    fig = plt.figure()
-    plt.hist(ll_v1, bins, alpha=0.5,  histtype='bar', label='T1_v1.2') 
-    plt.hist(ll_v2, bins, alpha=0.5, histtype='bar', label='T1_v2') 
-    plt.hist(ll_v3, bins, alpha=0.5, histtype='bar', label='T3D') 
-    #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
-    plt.xlabel('loop length [bases]')
-    plt.ylabel('Frequency')
-    plt.legend(loc='upper right')
-    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution.pdf')
-    plt.show()
-    #plt.close() 
-
-    
-    bin_width = 0.1
-    x_min = 1
-    x_max = numpy.log(5000)
-    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
-    
-    fig = plt.figure()
-    plt.hist(numpy.log(ll_v1), bins, alpha=0.5,  histtype='step', label='T1_v1.2') 
-    plt.hist(numpy.log(ll_v2), bins, alpha=0.5, histtype='step', label='T1_v2') 
-    plt.hist(numpy.log(ll_v3), bins,  alpha=0.5, histtype='step', label='T3D') 
-    #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
-    plt.xlabel('log(loop length)')
-    plt.ylabel('Frequency')
-    plt.legend(loc='upper right')
-    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution_log.pdf')
-    plt.show()
     
     
-    #%%
-    bin_width = 0.1
-    x_min = 1
-    x_max = numpy.log(5000)
-    bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
-    
-    fig = plt.figure()
-    plt.hist(numpy.log(ll_v1), bins, alpha=0.5,  histtype='bar', label='T1_v1.2') 
-    #plt.hist(numpy.log(ll_v2), bins, alpha=0.5, histtype='bar', label='T1_v2') 
-    #plt.hist(numpy.log(ll_v3), bins,  alpha=0.5, histtype='bar', label='T3D') 
-    
-    plt.xlabel('log(loop length)')
-    plt.ylabel('Frequency')
-    plt.legend(loc='upper right')
-    #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'T_ScaffoldLoopLengthDistribution_log2.pdf')
-    plt.show()
-    
-    #%%
-    print(numpy.mean(numpy.log(ll_v6)))
-    print(numpy.mean(numpy.log(ll_v7)))
-    print(numpy.mean(numpy.log(ll_v8)))
-    print(numpy.mean(numpy.log(ll_v9)))  
     
     #%%
 
