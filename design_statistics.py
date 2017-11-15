@@ -18,6 +18,7 @@ import argparse # parsing arguments
 from matplotlib import cm #colormaps for coloring staples
 from Bio.SeqUtils import MeltingTemp # compute melting temperatures
 from Bio.Seq import Seq #create biopython sequences
+import csv
 
 # try to impot nanodesign package. I assume the script is in x/somename/design_statistics.py and the nanodesign package is in x/nanodesign
 try:
@@ -309,7 +310,20 @@ def main():
     print('Average loop length is ' + str(numpy.mean(ll_tmp)) + ' bases.')
     print('Average log(loop length) is ' + str(numpy.mean(numpy.log(ll_tmp))) + ' bases.')
 
-#%%
+    #%% Print max domain Tm of oligos
+    file_out = output_path+'_MaxDomainMeltingTemp.csv'
+    with open(file_out, 'wb') as csvfile:
+        outputwriter = csv.writer(csvfile, delimiter='\t')
+        
+        for i in range(len(domain_max_melt)):
+            outputwriter.writerow([domain_max_melt[i][1]])
+    
+    print('Output written to: ' + file_out)  
+    
+    
+    
+    
+    #%%
 
 if __name__ == '__main__':
     main()
