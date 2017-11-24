@@ -311,13 +311,22 @@ def main():
     print('Average log(loop length) is ' + str(numpy.mean(numpy.log(ll_tmp))) + ' bases.')
 
     #%% Print max domain Tm of oligos
-    file_out = output_path+'_MaxDomainMeltingTemp.csv'
+    file_out = output_path+'_MaxDomainMeltingTemp.txt'
     with open(file_out, 'wb') as csvfile:
         outputwriter = csv.writer(csvfile, delimiter='\t')
         
         for i in range(len(domain_max_melt)):
             outputwriter.writerow([domain_max_melt[i][1]])
-    
+            #print(max(loop_lengths[i]))
+
+    file_out = output_path+'_LoopLengths.txt'
+    with open(file_out, 'wb') as csvfile:
+        outputwriter = csv.writer(csvfile, delimiter='\t')
+        
+        for i in range(len(loop_lengths)):
+            for j in range(len(loop_lengths[i])):
+                outputwriter.writerow([loop_lengths[i][j]])
+
     print('Output written to: ' + file_out)  
     
     
