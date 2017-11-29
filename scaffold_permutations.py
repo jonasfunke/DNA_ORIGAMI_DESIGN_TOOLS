@@ -318,7 +318,8 @@ def main():
                 tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2)
                 if len(tmp_domains)>0:
                     #tmp2.append(numpy.mean(tmp_domains))
-                    tmp2.append(numpy.sum(tmp_domains))
+                    #tmp2.append(numpy.sum(tmp_domains))
+                    tmp2.append(numpy.sum(numpy.multiply(tmp_domains,tmp_domains)))
                 else:
                     tmp2.append(0)
             reportoligo_sequences.append(tmp)
