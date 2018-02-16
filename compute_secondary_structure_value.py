@@ -18,7 +18,7 @@ loop_length = 2
 domain_length = 2
 complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
 #compute contact matrix
-cur_seq = 'ACTGCCTAGCATCAGT'#reporter_sequences[0];
+cur_seq = 'ACTGCCTAGCATCAGTATCGATCGATCGATAGCTAGGGATCGATA'#reporter_sequences[0];
 
 contacts = numpy.zeros((len(cur_seq),len(cur_seq)))
 for i in range(len(cur_seq)):
