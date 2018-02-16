@@ -166,7 +166,7 @@ def main():
     scaffold_id = -1
     for strand in dna_structure.strands:
         if strand.is_scaffold:
-            print('Scaffold strand has index '+ str(strand.id))
+            print('Scaffold strand has index '+ str(strand.id) + ' starts at H'+ str(strand.tour[0].h) + 'p' + str(strand.tour[0].p))
             if scaffold_id is -1 :
                 scaffold_id = strand.id
             else:
