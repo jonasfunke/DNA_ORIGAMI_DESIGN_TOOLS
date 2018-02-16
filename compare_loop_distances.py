@@ -164,15 +164,15 @@ def main():
     
     #output_path = '/Users/jonasfunke/Dropbox/Temporary/bullet_comparison/'
     print(output_path)
-    bin_width = 500.
+    bin_width = 800.
     x_min = 0
     x_max = 5000
     bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
     
-    fig = plt.figure()
+    fig = plt.figure(figsize = (12,6))
     plt.subplot(121)
     for i in range(len(ll_linear)):
-        plt.hist(ll_linear[i], bins, alpha=0.5,  histtype='step', label=os.path.basename(filelocations[i])) 
+        plt.hist(ll_linear[i], bins, alpha=1,  histtype='step', label=os.path.basename(filelocations[i])) 
     #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
     plt.xlabel('loop length [bases]')
     plt.ylabel('Frequency')
@@ -180,13 +180,13 @@ def main():
     
     plt.subplot(122)
     
-    bin_width = 0.5
+    bin_width = 0.8
     x_min = 1
     x_max = numpy.log(5000)
     bins= numpy.arange(x_min-bin_width/2, x_max+bin_width/2+bin_width, bin_width)
     
     for i in range(len(ll_linear)):
-        plt.hist(numpy.log(ll_linear[i]), bins, alpha=0.5,  histtype='step', label=os.path.basename(filelocations[i])) 
+        plt.hist(numpy.log(ll_linear[i]), bins, alpha=1,  histtype='step', label=os.path.basename(filelocations[i])) 
         print(os.path.basename(filelocations[i])+ ': '+ str(numpy.mean(numpy.log(ll_linear[i]))))
     #plt.title("Average  " + name + " = " +str(round(numpy.mean(data),1)) + unit)
     plt.xlabel('log(loop length)')
@@ -198,7 +198,7 @@ def main():
     
     
     #plt.xticks(numpy.arange(x_min, x_max+1, bin_width))
-    fig.savefig(output_path+'ScaffoldLoopLengthDistribution.pdf')
+    fig.savefig(output_path+'/ScaffoldLoopLengthDistribution.pdf')
     plt.show()
     
     

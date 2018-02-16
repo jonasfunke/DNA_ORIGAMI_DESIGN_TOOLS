@@ -229,6 +229,8 @@ def main():
     alpha_values = []
     base_list = []
     reportoligo_sequences = []
+    reportoligo_scaffold_mean_domains = []
+
     mean_var = []
     # loop through scaffold permutations in physical space
     for i in range(0, physical_scaffold_length):
@@ -255,16 +257,27 @@ def main():
             cur_base_list.append(physical_scaffold_sequence[(cur_base_index+i)%physical_scaffold_length])
     
         base_list.append(cur_base_list)
-        
+
         # black oligos
         if args.black_oligos:
             tmp = []
+            tmp2 = []
             for strand in reportoligo_scaffold_indices:
                 cur_strand = []
+                cur_sc_seq = []
                 for baseindex in strand:
                     cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
+                    cur_sc_seq.append(physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length])
                 tmp.append(''.join(cur_strand))
+                tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2)
+                if len(tmp_domains)>0:
+                    #tmp2.append(numpy.mean(tmp_domains))
+                    #tmp2.append(numpy.sum(tmp_domains))
+                    tmp2.append(numpy.sum(numpy.multiply(tmp_domains,tmp_domains)))
+                else:
+                    tmp2.append(0)
             reportoligo_sequences.append(tmp)
+            reportoligo_scaffold_mean_domains.append(tmp2)
 
     sys.stdout.write('\n')            
 
@@ -301,6 +314,9 @@ def main():
         for i in range(0,len(reportoligo_scaffold_indices)):
             tmp.append('Black oligo '+ str(i)+' T_m')
         
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('Black Scaffold '+ str(i))
+        
         outputwriter.writerow(tmp)
         
         # loop through scaffold permutations in physical space
@@ -328,6 +344,10 @@ def main():
             if args.black_oligos:
                 for strand in reportoligo_sequences[i]:
                     tmp.append(round(MeltingTemp.Tm_NN(Seq(''.join(strand))),1))
+            
+            if args.black_oligos:
+                for bla in reportoligo_scaffold_mean_domains[i]:
+                    tmp.append(bla)
                     
             outputwriter.writerow(tmp)
         print('Output written to: ' + file_out)   
