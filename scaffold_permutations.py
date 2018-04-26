@@ -115,6 +115,55 @@ def get_alpha_values(staple_domain_melt, T_crit):
     #print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(staple_domain_melt)))
     return alpha_values
     
+
+
+
+def get_self_domain_lengths(cur_seq, min_loop_length, min_domain_length):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    
+    # calculate map of base pairing (contact map)
+    contacts = numpy.zeros((len(cur_seq),len(cur_seq)))
+    for i in range(len(cur_seq)):
+        for j in range(i+min_loop_length+1, len(cur_seq)):
+            if (cur_seq[i]==complement[cur_seq[j]]):
+                contacts[i][j] = 1
+
+    #caculate the lengths of base pair domains
+    domains = []
+    for n in range(0, len(contacts)): # loop over the main diagonal
+        for k in range(0,2):
+            #print('-------')
+            cur_trace = []
+            for m in range(0, min(n+1, len(contacts)-n-k)): 
+                #print(str(n-m) + ', ' + str(n+m+k))
+                i = n-m
+                j = n+m+k
+             #   print(str(i) + ', ' + str(j) + '     ' + str(n+1) + ',' + str(len(contacts)-n) )
+                cur_trace.append(contacts[i][j])
+                
+            #print(cur_trace)
+            
+            if len(cur_trace)>0:
+                counter = cur_trace[0]
+            for i in range(1,len(cur_trace)):
+                if cur_trace[i]==0 or i==len(cur_trace)-1:
+                    if i==len(cur_trace)-1:
+                        counter = counter + cur_trace[i]
+                    if counter>0:
+                        domains.append(counter)
+                    counter = 0
+                else:
+                    counter = counter + cur_trace[i]
+               # print(counter)
+    #print(domains)
+    #plt.matshow(contacts)
+    #remove short domains
+    long_domains = [x for x in domains if x>=min_domain_length]     
+    
+    return long_domains
+
+
+
 #%%
 def main():
     #%%      
@@ -269,7 +318,7 @@ def main():
                     cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
                     cur_sc_seq.append(physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length])
                 tmp.append(''.join(cur_strand))
-                tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2)
+                tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2) #min_loop_length = 3, min_domain_length = 2
                 if len(tmp_domains)>0:
                     #tmp2.append(numpy.mean(tmp_domains))
                     #tmp2.append(numpy.sum(tmp_domains))

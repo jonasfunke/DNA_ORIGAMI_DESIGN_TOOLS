@@ -14,7 +14,6 @@ import numpy #for writing matrices
 import matplotlib.pyplot as plt #plotting 
 
 
-<<<<<<< HEAD
 loop_length = 2
 domain_length = 2
 complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
@@ -39,7 +38,6 @@ for n in range(0, len(contacts)):
             j = n+m+k
          #   print(str(i) + ', ' + str(j) + '     ' + str(n+1) + ',' + str(len(contacts)-n) )
             cur_trace.append(contacts[i][j])
-=======
 
 
 
@@ -67,7 +65,6 @@ def get_self_domain_lengths(cur_seq, min_loop_length, min_domain_length):
                 cur_trace.append(contacts[i][j])
                 
             #print(cur_trace)
->>>>>>> origin/master
             
             if len(cur_trace)>0:
                 counter = cur_trace[0]
@@ -92,10 +89,11 @@ def get_self_domain_lengths(cur_seq, min_loop_length, min_domain_length):
 
 #%
     
-strands = ['TCTTCTGCTGGTGGTTCGTTCGGTATTTTT', 
-           'CATGTTGTTTATTGTCGTCGTCTGGACAGA',
-           'TGGTTCTGGTGGCGGCTCTGAGGGTGGTGG',
-           'GTGTTTTAGTGTATTCTTTTGCCTCTTTCG']
+strands = ['ATAAGAGCAAGAAACAATGAAATAGCAATA',	
+'CCACCCTCAGAGCCACCACCCTCATTTTCA',	
+'TGAAAGAGGACAGATGAACGGTGTACAGAC',	
+'ATTTAGTTTGACCATTAGATACATTTCGCA',	
+'AGGCTGCGCAACTGTTGGGAAGGGCGATCG']
 
 for cur_strand in strands:
     domains = get_self_domain_lengths(cur_strand, 3, 2)
