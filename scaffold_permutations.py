@@ -363,7 +363,9 @@ def main():
                 for baseindex in strand:
                     cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
                     cur_sc_seq.append(physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length])
-                tmp.append(''.join(cur_strand))
+                #tmp.append(''.join(cur_strand)) # return staple sequence in output file
+                cur_sc_seq.reverse() # get 5' to 3' sequence of scaffold
+                tmp.append(''.join(cur_sc_seq)) # return staple scaffold in output file
                 tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2) #min_loop_length = 3, min_domain_length = 2
                 if len(tmp_domains)>0:
                     #tmp2.append(numpy.mean(tmp_domains))

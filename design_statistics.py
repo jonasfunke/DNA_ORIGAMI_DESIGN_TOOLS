@@ -25,8 +25,8 @@ try:
     import nanodesign
 except ImportError:
     import sys
-    #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign/'))
+    base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
+    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign/'))
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -129,8 +129,9 @@ def main():
     seq_name = args.scaffold[0] #sys.argv[2]
 
     #%%
-    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/Designs/FS-v6_spectrometer/twist_screen/FS-v6_019_deacivated.json'
-    #seq_name = 'p7308'
+    file_full_path_and_name = '/Users/jonasfunke/Desktop/LGV3_4st_9_final.json'
+    seq_name = 'p8064'
+    T_crit = 45.
     
     # parse filename and create output directory
     file_name = os.path.basename( file_full_path_and_name )
@@ -251,31 +252,55 @@ def main():
     #sequence of scaffold in design, this includes skips as 'N' 
     design_scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
     physical_scaffold_length = len(design_scaffold_sequence)-design_scaffold_sequence.count('N')
-
+    
+    #%%
     # get the indices of the staples on the scaffold strand and scaffold loop length
+
+    f= open("/Users/jonasfunke/Desktop/test.bild","w+")
     staple_indices = []
+    #staple_base_coords = []
     loop_lengths = []
     for strand in dna_structure.strands:
         if not strand.is_scaffold:  
             cur_strand = []
+            cur_strand_base_coord = []
             for domain in strand.domain_list:
                 cur_domain = []
+                cur_domain_base_coord = []
                 for base in domain.base_list:
                     if base.seq is not 'N':
                         # index of base on the physical scaffold
                         i = physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)]
                         cur_domain.append(i)
+                        cur_domain_base_coord.append(base.nt_coords)
+                        #f.write(".color 1 1 1\n" )
+                        #f.write(".sphere %f %f %f 0.1\n" % (base.nt_coords[0],base.nt_coords[1],base.nt_coords[2])) 
+                        
+                for i in range(1,len(domain.base_list)):
+                    if (domain.base_list[i-1].seq is not 'N') and (domain.base_list[i].seq is not 'N'):
+                        cur_base = domain.base_list[i]
+                        prev_base = domain.base_list[i-1]
+                        f.write(".color 1 1 1\n" )
+                        f.write(".v %f %f %f %f %f %f 0.1\n" % (prev_base.nt_coords[0],prev_base.nt_coords[1],prev_base.nt_coords[2], cur_base.nt_coords[0],cur_base.nt_coords[1],cur_base.nt_coords[2])) 
                 cur_strand.append(cur_domain)
+                cur_strand_base_coord.append(cur_domain_base_coord)
             staple_indices.append(cur_strand)
-            
+            #staple_base_coords.append(cur_strand_base_coord)
             cur_strand_loop_length = []
             for i in range(1,len(cur_strand)):
                 if len(cur_strand[i])>0 and len(cur_strand[i-1])>0:
                     d = abs(cur_strand[i][0]-cur_strand[i-1][-1])
                     cur_strand_loop_length.append(min(d, physical_scaffold_length-d))
-                
-            loop_lengths.append(cur_strand_loop_length)
+                    if min(d, physical_scaffold_length-d) > 10:
+                        #draw connection
+                        x = min(d, physical_scaffold_length-d)/float(physical_scaffold_length/2)
+                        f.write(".color %f %f 0\n" % (2*x, 2*(1-x)) )
+                        f.write(".cylinder %f %f %f %f %f %f 0.1\n" % (cur_strand_base_coord[i][0][0], cur_strand_base_coord[i][0][1], cur_strand_base_coord[i][0][2], cur_strand_base_coord[i-1][-1][0], cur_strand_base_coord[i-1][-1][1], cur_strand_base_coord[i-1][-1][2]))
+                    loop_lengths.append(cur_strand_loop_length)
+                    
         
+    f.close()
+    #%%
     # make historgram
     ll_tmp = []
     for i in range(len(loop_lengths)):
