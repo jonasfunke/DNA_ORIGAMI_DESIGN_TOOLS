@@ -25,8 +25,9 @@ try:
     import nanodesign
 except ImportError:
     import sys
-    base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
-    #base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign/'))
+    #base_path = '/Users/jonasfunke/Software/NANODESIGN/nanodesign'
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign/'))
+    print(base_path)
     sys.path.append(base_path)
     import nanodesign
     # If the import fails now, we let the exception go all the way up to halt execution.
@@ -129,8 +130,8 @@ def main():
     seq_name = args.scaffold[0] #sys.argv[2]
 
     #%%
-    file_full_path_and_name = '/Users/jonasfunke/Desktop/LGV3_4st_9_final.json'
-    seq_name = 'p8064'
+    #file_full_path_and_name = '/Users/jonasfunke/Desktop/LGV3_4st_9_final.json'
+    #seq_name = 'p8064'
     T_crit = 45.
     
     # parse filename and create output directory
