@@ -1,0 +1,521 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 25 14:51:51 2017
+
+@author: jonasfunke
+    This script will compute various metrics/sequences for each scaffold permutation
+"""
+
+# Imports
+from __future__ import print_function
+
+import os
+import csv
+import argparse
+import numpy
+from Bio.SeqUtils import MeltingTemp # compute melting temperatures
+from Bio.Seq import Seq #create biopython sequences
+#from Bio.Alphabet import generic_dna
+
+
+# try to impot nanodesign package. I assume the script is in x/somename/design_statistics.py and the nanodesign package is in x/nanodesign
+try:
+    import nanodesign
+except ImportError:
+    import sys
+    #base_path = '/Users/jonasfunke/NANODESIGN/nanodesign'
+    base_path = os.path.abspath( os.path.join( os.path.dirname(os.path.abspath( __file__)), '../nanodesign'))
+    sys.path.append(base_path)
+    import nanodesign
+    # If the import fails now, we let the exception go all the way up to halt execution.
+    sys.path = sys.path[:-1]
+    from nanodesign.converters import Converter
+
+# Functions
+def read_file(file_name, seq_name): # read file
+    converter = Converter()
+    seq_file = None
+    converter.read_cadnano_file(file_name, seq_file, seq_name)
+    return converter
+
+def get_sequence(strand):
+    cur_seq = []
+    for base in strand.tour:
+        cur_seq.append(base.seq)
+    return ''.join(cur_seq)
+
+def get_index_lists(dna_structure, scaffold_id):
+    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+
+    physical_to_design = []
+    design_to_physical =[]
+
+    physical_index = 0
+    for design_index in range(len(scaffold_sequence)):
+        #physical_index.append(i-scaffold_sequence[0:design_index+1].count('N'))
+        if scaffold_sequence[design_index] is 'N':
+            design_to_physical.append(physical_index)
+        else:
+            physical_to_design.append(design_index)
+            design_to_physical.append(physical_index)
+            physical_index = physical_index+1
+
+    return physical_to_design, design_to_physical
+
+
+# find the domain with the highest melting temperature of each staple
+def get_max_domain_melt(dna_structure, staple_indices, scaffold_rotation, scaffold_id, print_staples):
+    # physical scaffold sequence
+    scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id]).replace('N', '')
+    # physical scaffold length
+    scaffold_length = len(scaffold_sequence)
+    #print(staple_indices)
+    #loop through strands
+    staple_domain_melt = []
+    for strand in staple_indices:
+        #cur_strand= []
+        cur_domain_melt = []
+        # loop through domain
+        for domain in strand:
+            # loop through bases in DOMAIN
+            cur_domain = []
+            for baseindex in domain:
+                # physical index in scaffold
+                i_physical = (baseindex+scaffold_rotation)%scaffold_length
+
+                #dna_structure.strands[scaffold_id].tour[i_physical+offset].seq
+                cur_domain.append(scaffold_sequence[i_physical])
+            if len(cur_domain)>1:
+                # compute melting temperature of domain; reverse sequence of cur_domain, since it is on the scaffold and the indices follow staples
+                cur_domain_melt.append(MeltingTemp.Tm_NN(Seq(''.join(cur_domain[::-1]))))
+            else:
+                cur_domain_melt.append(0.)
+            #domain_seq_on_scaffold = Seq(''.join(cur_domain[::-1]), generic_dna)
+            #cur_strand.append(str(domain_seq_on_scaffold.reverse_complement()))
+
+        staple_domain_melt.append(max(cur_domain_melt))
+        #if print_staples:
+        #    print(str(cur_strand))
+    return staple_domain_melt
+
+
+# calulate alpha values for each tempereture given in T_crit
+def get_alpha_values(staple_domain_melt, T_crit):
+
+    alpha_values = []
+    for T_cur in T_crit:
+        N_good = 0
+        for T in staple_domain_melt:
+            if T >= T_cur:
+                N_good = N_good + 1
+        alpha_values.append( N_good / float(len(staple_domain_melt)) )
+
+
+    #print('Number of oligos with a domain with T_m >= '+str(T_crit)+'°C: '+str(N_good)+' of '+str(len(staple_domain_melt)))
+    return alpha_values
+
+
+# compute secondary structures of cur_seq
+def get_self_domain_lengths(cur_seq, min_loop_length, min_domain_length):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+
+    # calculate map of base pairing (contact map)
+    contacts = numpy.zeros((len(cur_seq),len(cur_seq)))
+    for i in range(len(cur_seq)):
+        for j in range(i+min_loop_length, len(cur_seq)):
+            if (cur_seq[i]==complement[cur_seq[j]]):
+                contacts[i][j] = 1
+
+    #caculate the lengths of base pair domains
+    domains = []
+    for n in range(0, len(contacts)): # loop over the main diagonal
+        for k in range(0,2):
+            #print('-------')
+            cur_trace = []
+            for m in range(0, min(n+1, len(contacts)-n-k)):
+                #print(str(n-m) + ', ' + str(n+m+k))
+                i = n-m
+                j = n+m+k
+             #   print(str(i) + ', ' + str(j) + '     ' + str(n+1) + ',' + str(len(contacts)-n) )
+                cur_trace.append(contacts[i][j])
+            #print(cur_trace)
+
+            # look for 11011 pattern and delete 0
+            pattern = [1, 1, 0, 1, 1]
+            indeces_to_delete = []
+            #print(cur_trace)
+            for i in range(2, len(cur_trace)-2):
+                if cur_trace[i-2:i+3]==pattern:
+                    indeces_to_delete.append(i)
+                #print(str(cur_trace[i-2:i+3]))
+            for i in sorted(indeces_to_delete, reverse=True):
+                del cur_trace[i]
+            #print(cur_trace)
+
+            #
+            if len(cur_trace)>0:
+                counter = cur_trace[0]
+            for i in range(1,len(cur_trace)):
+                if cur_trace[i]==0 or i==len(cur_trace)-1:
+                    if i==len(cur_trace)-1:
+                        counter = counter + cur_trace[i]
+                    if counter>0:
+                        domains.append(counter)
+                    counter = 0
+                else:
+                    counter = counter + cur_trace[i]
+               # print(counter)
+    #print(domains)
+
+    #remove short domains
+    long_domains = [x for x in domains if x>=min_domain_length]
+
+    return long_domains
+
+
+
+# compute homodimers
+def get_homodimer_domain_lengths(strand_A, min_domain_length):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+
+    strand_B = strand_A #we are lookin at homodimers
+
+    N_A = len(strand_A)
+    N_B = len(strand_B)
+    # calculate map of base pairing (contact map)
+    contacts = numpy.zeros((N_A,N_B))
+    for i in range(N_A):
+        for j in range(N_B):
+            if (strand_A[i]==complement[strand_B[j]]):
+                contacts[i][j] = 1
+
+    #caculate the lengths of base-pair domains
+    domains = []
+    for n in range(0, N_A+N_B-1): # loop over the main diagonal
+        # for k in range(0,2):
+        for k in range(0,1): # do we need k, what is this good foor?
+            #print('-------')
+            cur_trace = []
+            for m in range(0, min(n+1, N_A-k)):
+                #print(str(n-m) + ', ' + str(n+m+k))
+                i = n-m
+                j = m+k
+                if i<N_A and j<N_B:
+                    #print(str(n) + ', ' + str(m) + ', ' + str(i) + ', ' + str(j) + '     ' + str(n+1) + ',' + str(N_B) )
+                    cur_trace.append(contacts[i][j])
+
+            #print(cur_trace)
+
+            if len(cur_trace)>0:
+                counter = cur_trace[0]
+            for i in range(1,len(cur_trace)):
+                if cur_trace[i]==0 or i==len(cur_trace)-1:
+                    if i==len(cur_trace)-1:
+                        counter = counter + cur_trace[i]
+                    if counter>0:
+                        domains.append(counter)
+                    counter = 0
+                else:
+                    counter = counter + cur_trace[i]
+               # print(counter)
+    #print(domains)
+
+    #remove short domains
+    long_domains = [x for x in domains if x>=min_domain_length]
+
+    return long_domains
+
+
+
+
+#%%
+def main():
+    #%%
+    # Parse arguments, TODO: use parser object
+    parser = argparse.ArgumentParser(description='Do scaffold permutations.', prog='scaffold_permutations.py')
+    parser.add_argument('path_to_json', type=str, nargs=1, help='Path to json file')
+    parser.add_argument('scaffold', type=str, nargs=1, help='Scaffold: ...p7704, p8064', choices=['M13mp18', 'p7308', 'p7560', 'p7704', 'p8064', 'p8100', 'p8634', 'M13KO7', 'CS3_S', 'p1033'])
+    parser.add_argument('--positions', type=str, nargs='+', help='Base to report on (scaffold base) as HelixID,Position. Example: --positions 0,100 27,212')
+    #parser.add_argument('--alpha_value', action='store_const', const=True , help='Compute alpha value for each rotation')
+    parser.add_argument('--alpha_value', type=str, nargs='?', const='45', help='Threshold temperatures, for which the alpha-value should be computed. Example: --alpha_value 40,45,55 ')
+    parser.add_argument('--black_oligos', action='store_const', const=True , help='Compute sequences of black oligos for each rotation')
+
+    #args = parser.parse_args(['/Users/jonasfunke/Documents/FRET_STAGE/test', 'p8064', '--positions', '2,3', '--alpha_value'])
+    args = parser.parse_args()
+
+    file_full_path_and_name = os.path.abspath( os.path.expanduser( args.path_to_json[0] ))
+    seq_name = args.scaffold[0]
+
+
+    base_coords = []
+    if args.positions > 0:
+        for pos in args.positions:
+            base_coords.append([int(a) for a in pos.split(',')]) # [[H,p], [H,p], ...]
+
+    #print(args.alpha_value)
+    alpha_temperatures = []
+    if args.alpha_value is not None:
+        #args.alpha_value = tmp;
+        alpha_temperatures = [int(a) for a in args.alpha_value.split(',')] # [[H,p], [H,p], ...]
+
+    #print(alpha_temperatures)
+    #%%
+    #file_full_path_and_name = '/Users/jonasfunke/Dropbox/FRET_STAGE/test/small.json'
+    #seq_name = 'p8064'
+
+    # parse filename and create output directory
+    file_name = os.path.basename( file_full_path_and_name )
+    output_path = os.path.dirname(file_full_path_and_name) + os.sep + file_name[:-5] + '_scaffold-permutations' + os.sep
+    if not os.path.isdir(output_path):
+        os.mkdir(output_path)
+    output_path = output_path+file_name[:-5]
+
+    # Read cadnano file and create dna structure.
+    converter = read_file(file_full_path_and_name, seq_name)
+    dna_structure = converter.dna_structure
+    dna_structure.compute_aux_data() # compute domain data
+
+    #determine scaffold strand id
+    scaffold_id = -1
+    for strand in dna_structure.strands:
+        if strand.is_scaffold:
+            print('Scaffold strand has index '+ str(strand.id) + ' starts at H'+ str(strand.tour[0].h) + 'p' + str(strand.tour[0].p))
+            if scaffold_id is -1 :
+                scaffold_id = strand.id
+            else:
+                print('WARNING: Multiple scaffolds detected')
+
+    #%% create the maps, that map design to physical indeces
+    design_index, physical_index = get_index_lists(dna_structure, scaffold_id)
+
+    # get the indices of the staples on the scaffold strand
+    staple_indices = []
+    for strand in dna_structure.strands:
+        if not strand.is_scaffold:
+            cur_strand = []
+            for domain in strand.domain_list:
+                cur_domain = []
+                for base in domain.base_list:
+                    if base.seq is not 'N':
+                        # index of base on the physical scaffold
+                        i = physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)]
+                        cur_domain.append(i)
+                cur_strand.append(cur_domain)
+            staple_indices.append(cur_strand)
+
+    # get indices of black colored oligos
+    reportcolor = 3355443 # this is the decimal value corresponding to 33333
+    reportoligo_scaffold_indices =[]
+    scaffold_bases_init =[]
+    if args.black_oligos:
+        for strand in dna_structure.strands:
+            if strand.icolor==reportcolor:
+                strand_scaffold_indeces = []
+                for base in strand.tour:
+                    if base.seq is not 'N':
+                        strand_scaffold_indeces.append(physical_index[dna_structure.strands[scaffold_id].get_base_index(base.across)])
+                #strand_scaffold_indeces.reverse() # reverse the sequence to obtain 5' to 3'
+                reportoligo_scaffold_indices.append(strand_scaffold_indeces)
+        print('Number of black oligos: '+str(len(reportoligo_scaffold_indices)))
+
+    # get indeces on scaffold from candnano lattice positions
+    base_coords_on_scaffold = []
+    for cur_coord in base_coords:
+       # get base from helix and position coordinates
+       cur_base = dna_structure.structure_helices_map[cur_coord[0]].scaffold_pos[cur_coord[1]]
+       i = physical_index[dna_structure.strands[scaffold_id].get_base_index(cur_base)]
+       base_coords_on_scaffold.append(i)
+
+    #%%
+    #sequence of scaffold in design, this includes skips as 'N'
+    design_scaffold_sequence = get_sequence(dna_structure.strands[scaffold_id])
+    physical_scaffold_sequence = design_scaffold_sequence.replace('N', '')
+
+    #physical sequence of scaffold, this is the true scaffold sequence
+    physical_scaffold_length = len(design_scaffold_sequence)-design_scaffold_sequence.count('N')
+    design_scaffold_length = len(design_scaffold_sequence)
+
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+
+
+    #T_crit = 45.
+    alpha_values = []
+    base_list = []
+    reportoligo_scaffold_sequences = []
+    reportoligo_scaffold_structure_score = []
+    reportoligo_sequences = []
+    reportoligo_structure_score = []
+    reportoligo_homodimer_score = []
+
+    mean_var = []
+    # loop through scaffold permutations in physical space
+    for i in range(0, physical_scaffold_length):
+
+        if i%100 is 0:
+            #print('Computing permutation '+str(i) + ' of ' + str(physical_scaffold_length), end='')
+
+            done = 100*float(i)/physical_scaffold_length
+            # the exact output you're looking for:
+            sys.stdout.write("[%-100s] %d%% done, iteration %i of %i" % ('='*int(done/1), done, i, physical_scaffold_length))
+            sys.stdout.write('\r')
+            sys.stdout.flush()
+
+        # calculate alpha value
+        if len(alpha_temperatures)>0:
+            staple_domain_max_melt = get_max_domain_melt(dna_structure, staple_indices, i, scaffold_id, 0)
+            alpha_values.append(get_alpha_values(staple_domain_max_melt, alpha_temperatures))
+            #if i==0: print("Current alpha value is " + str(alpha_value[-1]))
+            mean_var.append([numpy.mean(staple_domain_max_melt), numpy.var(staple_domain_max_melt)])
+
+        # get the bases at the current rotation
+        cur_base_list = []
+        for cur_base_index in base_coords_on_scaffold:
+            cur_base_list.append(physical_scaffold_sequence[(cur_base_index+i)%physical_scaffold_length])
+
+        base_list.append(cur_base_list)
+
+        # black oligos
+        if args.black_oligos:
+            tmp = []
+            tmp_reporter = []
+            tmp2 = []
+            tmp2_reporter = []
+            tmp3_reporter = []
+            for strand in reportoligo_scaffold_indices:
+                cur_strand = []
+                cur_sc_seq = []
+                for baseindex in strand:
+                    cur_strand.append(complement[physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length]])
+                    cur_sc_seq.append(physical_scaffold_sequence[(baseindex+i)%physical_scaffold_length])
+                tmp_reporter.append(''.join(cur_strand)) # return staple sequence in output file
+                cur_sc_seq.reverse() # get 5' to 3' sequence of scaffold
+                tmp.append(''.join(cur_sc_seq)) # return staple scaffold in output file
+                tmp_domains = get_self_domain_lengths(''.join(cur_sc_seq), 3, 2) #min_loop_length = 3, min_domain_length = 2
+                tmp_domains_reporter = get_self_domain_lengths(''.join(cur_strand), 3, 2) #min_loop_length = 3, min_domain_length = 2
+                tmp_reporter_homodimer_domains = get_homodimer_domain_lengths(''.join(cur_strand), 3) #min_loop_length = 3
+                #tmp_reporter_homodimer_domains = []
+                if len(tmp_domains)>0:
+                    tmp2.append(numpy.sum(numpy.multiply(tmp_domains,tmp_domains)))
+                else:
+                    tmp2.append(0)
+
+                if len(tmp_domains_reporter)>0:
+                    tmp2_reporter.append(numpy.sum(numpy.multiply(tmp_domains_reporter,tmp_domains_reporter)))
+                else:
+                    tmp2_reporter.append(0)
+
+                if len(tmp_reporter_homodimer_domains)>0:
+                    tmp3_reporter.append(numpy.sum(numpy.multiply(tmp_reporter_homodimer_domains,tmp_reporter_homodimer_domains)))
+                else:
+                    tmp3_reporter.append(0)
+
+            reportoligo_scaffold_sequences.append(tmp)
+            reportoligo_scaffold_structure_score.append(tmp2)
+            reportoligo_sequences.append(tmp_reporter)
+            reportoligo_structure_score.append(tmp2_reporter)
+            reportoligo_homodimer_score.append(tmp3_reporter)
+
+    sys.stdout.write('\n')
+
+    #print(alpha_values)
+    #%%
+    #if args.alpha_value:
+    #    print('Maximal alpha values:')
+    #    i_sorted = sorted(range(len(alpha_value)), key=lambda k: alpha_value[k])
+    #    for j in range(10):
+    #        i_d = design_index[(-i_sorted[-1-j])%physical_scaffold_length]
+    #        print('Alpha value ' + str(alpha_value[i_sorted[-1-j]]) + ' on Helix H' + str(dna_structure.strands[scaffold_id].tour[i_d].h) + ' at position ' +  str(dna_structure.strands[scaffold_id].tour[i_d].p) + '  (permutation ' + str(i_sorted[-1-j]) + ')' )
+
+    #print(mean_var)
+
+    #%%
+    file_out = output_path+'_scaffold-permutations.csv'
+    with open(file_out, 'wb') as csvfile:
+        outputwriter = csv.writer(csvfile, delimiter=';')
+        tmp = ['Permutation', 'Scaffold start helix', 'Scaffold start position']
+
+        for i in range(0,len(alpha_temperatures)):
+            tmp.append('Alpha_value_' + str(alpha_temperatures[i]))
+
+        if len(alpha_temperatures)>0:
+            tmp.append('Mean of largest domain Tm')
+            tmp.append('Variance of largest domain Tm')
+
+        for cur_coord in base_coords:
+            tmp.append('H' + str(cur_coord[0]) + ',' + str(cur_coord[1]))
+
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_sc_'+ str(i) + ' seq')
+
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_st_'+ str(i) + ' seq')
+
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_sc_'+ str(i)+' T_m')
+
+
+
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_sc_'+ str(i) + ' structure_score')
+
+        # write structure score
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_st_'+ str(i) + ' structure_score')
+
+        # write homodimer score
+        for i in range(0,len(reportoligo_scaffold_indices)):
+            tmp.append('R_st_'+ str(i) + ' homodimer_score')
+
+
+        outputwriter.writerow(tmp)
+
+        # loop through scaffold permutations in physical space
+        for i in range(0,physical_scaffold_length):
+
+            # determine start of scaffold in design
+            i_d = design_index[(-i)%physical_scaffold_length]
+
+            # write data for this rotation
+            tmp = [str(i), str(dna_structure.strands[scaffold_id].tour[i_d].h), str(dna_structure.strands[scaffold_id].tour[i_d].p)]
+            for j in range(0, len(alpha_temperatures)):
+                tmp.append(alpha_values[i][j])
+
+            if len(alpha_temperatures)>0:
+                tmp.append(mean_var[i][0])
+                tmp.append(mean_var[i][1])
+
+            for cur_base in base_list[i]:
+                tmp.append(cur_base)
+
+            if args.black_oligos:
+                for strand in reportoligo_scaffold_sequences[i]:
+                    tmp.append(strand)
+                for strand in reportoligo_sequences[i]:
+                    tmp.append(strand)
+
+            if args.black_oligos:
+                for strand in reportoligo_scaffold_sequences[i]:
+                    tmp.append(round(MeltingTemp.Tm_NN(Seq(''.join(strand))),1))
+
+            if args.black_oligos:
+                for bla in reportoligo_scaffold_structure_score[i]:
+                    tmp.append(bla)
+                for bla in reportoligo_structure_score[i]:
+                    tmp.append(bla)
+                for bla in reportoligo_homodimer_score[i]:
+                    tmp.append(bla)
+
+
+            outputwriter.writerow(tmp)
+        print('Output written to: ' + file_out)
+
+    if args.alpha_value:
+        print('REMARK: alpha values of the modified design might differ slightly form the predicted alpha values. Altered staple segmentation caused by shifting the scaffold starting point can slightly change the final alpha value.')
+
+
+
+#%%
+
+if __name__ == '__main__':
+    main()
